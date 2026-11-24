@@ -85,6 +85,41 @@ def kahn(graph):                      # graph: dict u -> список v (рёб�
     if len(order) < len(graph):
         return None                   # остались вершины → есть цикл
     return order`,
+      cpp: `optional<vector<int>> kahn(const vector<vector<int>>& graph) {   // graph[u] = список v (рёбра u -> v)
+    int n = graph.size();
+    vector<int> indeg(n, 0);
+    for (int u = 0; u < n; u++)
+        for (int v : graph[u])
+            indeg[v]++;               // считаем ВХОДЯЩИЕ рёбра
+
+    queue<int> q;
+    for (int u = 0; u < n; u++)       // по возрастанию номеров
+        if (indeg[u] == 0)
+            q.push(u);
+    vector<int> order;
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+        order.push_back(u);
+        for (int v : graph[u]) {
+            indeg[v]--;               // «удаляем» ребро u -> v
+            if (indeg[v] == 0)
+                q.push(v);
+        }
+    }
+
+    if ((int)order.size() < n)
+        return nullopt;               // остались вершины → есть цикл
+    return order;
+}`,
+      cppExplain: [
+        { line: 1, text: "optional<vector<int>> — либо порядок, либо «ничего» (nullopt): аналог return None в Python." },
+        { line: 6, text: "Увеличиваем in-degree КОНЦА ребра (v), а не начала (u). Частая ошибка — indeg[u]++ (это out-degree)." },
+        { line: 9, text: "В очередь сразу идут ВСЕ вершины без зависимостей, а не одна. Цикл по u = 0..n−1 даёт возрастающий порядок." },
+        { line: 14, text: "front() + pop() — FIFO (в std::queue pop() ничего не возвращает). Можно использовать и стек или priority_queue: ответ будет другим, но тоже корректным." },
+        { line: 17, text: "Уменьшаем in-degree соседа v. Вершина u уже в ответе, её счётчик не трогаем." },
+        { line: 18, text: "Проверка «стало ровно 0» сразу после уменьшения — так каждая вершина попадёт в очередь ровно один раз." },
+        { line: 23, text: "Вершины цикла никогда не получат in-degree 0 — они не попадут в ответ. Это встроенное обнаружение цикла." },
+      ],
       explain: [
         { line: 7, text: 'Увеличиваем in-degree КОНЦА ребра (v), а не начала (u). Частая ошибка — indeg[u] += 1 (это out-degree).' },
         { line: 9, text: 'В очередь сразу идут ВСЕ вершины без зависимостей, а не одна.' },
@@ -136,6 +171,36 @@ def kahn(graph):                      # graph: dict u -> список v (рёб�
         if color[u] == WHITE:
             visit(u)
     return finish[::-1]                     # РАЗВОРОТ!`,
+      cpp: `vector<int> topo_dfs(const vector<vector<int>>& graph) {
+    enum { WHITE, GRAY, BLACK };
+    vector<int> color(graph.size(), WHITE);
+    vector<int> finish;
+
+    function<void(int)> visit = [&](int u) {
+        color[u] = GRAY;
+        for (int v : graph[u]) {
+            if (color[v] == GRAY)
+                throw runtime_error("cycle");   // back edge → не DAG
+            if (color[v] == WHITE)
+                visit(v);
+        }
+        color[u] = BLACK;
+        finish.push_back(u);                    // u завершена после всех, кто от неё зависит
+    };
+
+    for (int u = 0; u < (int)graph.size(); u++)  // внешний цикл по всем вершинам
+        if (color[u] == WHITE)
+            visit(u);
+    reverse(finish.begin(), finish.end());     // РАЗВОРОТ!
+    return finish;
+}`,
+      cppExplain: [
+        { line: 7, text: "GRAY: вершина на текущем пути рекурсии." },
+        { line: 9, text: "Ребро в GRAY = back edge = направленный цикл → сортировки не существует (в C++ бросаем исключение runtime_error)." },
+        { line: 15, text: "Добавляем в момент ЗАВЕРШЕНИЯ (postorder), а не при входе. Preorder здесь дал бы неверный ответ." },
+        { line: 18, text: "Без внешнего цикла вершины, недостижимые из первой, потеряются. Вершины перебираются по возрастанию номеров." },
+        { line: 21, text: "std::reverse переворачивает finish list (аналог finish[::-1]): сначала завершаются те, от кого ничего не зависит, поэтому список разворачивают." },
+      ],
       explain: [
         { line: 7, text: 'GRAY: вершина на текущем пути рекурсии.' },
         { line: 9, text: 'Ребро в GRAY = back edge = направленный цикл → сортировки не существует.' },

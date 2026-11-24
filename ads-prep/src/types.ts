@@ -38,8 +38,18 @@ export type Block =
   | { kind: 'analogy'; title?: string; text: string }
   | { kind: 'note' | 'tip' | 'warning'; title?: string; text: string }
   | { kind: 'list'; items: string[]; ordered?: boolean }
-  /** Код на Python. `explain` — пояснения к строкам (номер строки с 1). */
-  | { kind: 'code'; code: string; caption?: string; explain?: { line: number; text: string }[] }
+  /**
+   * Код на Python (`code`) и C++ (`cpp`). `explain` / `cppExplain` — пояснения к строкам
+   * соответствующей версии (номер строки с 1).
+   */
+  | {
+      kind: 'code';
+      code: string;
+      cpp?: string;
+      caption?: string;
+      explain?: { line: number; text: string }[];
+      cppExplain?: { line: number; text: string }[];
+    }
   | { kind: 'table'; headers: string[]; rows: string[][]; caption?: string }
   /** Пошаговый пример. `state` — моноширинный снимок состояния после шага. */
   | { kind: 'steps'; title: string; steps: { title: string; text: string; state?: string }[] }
@@ -66,6 +76,8 @@ export interface MCQ {
   question: string;
   /** Необязательный фрагмент кода Python к вопросу. */
   code?: string;
+  /** Тот же фрагмент на C++ (обязателен, если есть code). */
+  codeCpp?: string;
   options: [string, string, string, string];
   correct: 0 | 1 | 2 | 3;
   /** Почему правильный ответ правильный. */
@@ -123,8 +135,10 @@ export interface TracingTask {
   prompt: string;
   /** Исходные данные (моноширинный блок). */
   data: string;
-  /** Код/псевдокод алгоритма (Python). */
+  /** Код алгоритма (Python). */
   code?: string;
+  /** Тот же алгоритм на C++. */
+  codeCpp?: string;
   /** Подсказка о формате ответа. */
   format: string;
   /** Правильный ответ как список токенов. */
@@ -174,6 +188,9 @@ export interface CounterexampleTask {
   buggyCode: string;
   /** Номер строки с ошибкой (1-based) — подсвечивается после решения. */
   bugLine: number;
+  /** Тот же код с той же ошибкой на C++. */
+  buggyCodeCpp: string;
+  bugLineCpp: number;
   hint: string;
   fields: CxField[];
   /** Пример входа, на котором код работает правильно (для старта). */
@@ -184,4 +201,5 @@ export interface CounterexampleTask {
   /** Почему эталонный контрпример ломает код и как исправить. */
   explanation: string;
   fixedCode: string;
+  fixedCodeCpp: string;
 }

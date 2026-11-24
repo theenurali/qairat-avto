@@ -97,6 +97,13 @@ const raw: Q[] = [
 1 [ 1 0 1 1 ]
 2 [ 1 1 0 0 ]
 3 [ 0 1 0 0 ]`,
+    codeCpp: `// Adjacency Matrix неориентированного графа
+vector<vector<int>> M = {
+    {0, 1, 1, 0},
+    {1, 0, 1, 1},
+    {1, 1, 0, 0},
+    {0, 1, 0, 0},
+};`,
     options: ['8', '4', '16', '3'],
     correct: 1,
     explanation: 'Единиц всего 8, но каждое ребро undirected графа записано дважды (симметрично). Рёбра: (0,1), (0,2), (1,2), (1,3) — 4 штуки.',
@@ -110,6 +117,11 @@ const raw: Q[] = [
 adj = defaultdict(list)
 for u, v in [(0, 1), (1, 2), (2, 3)]:
     adj[u].append(v)        # adj[v].append(u) забыли`,
+    codeCpp: `int n = 4;
+vector<vector<int>> adj(n);
+vector<pair<int, int>> edges = {{0, 1}, {1, 2}, {2, 3}};
+for (auto [u, v] : edges)
+    adj[u].push_back(v);    // adj[v].push_back(u) забыли`,
     options: ['[3, 2, 1, 0]', 'KeyError', '[3]', '[0, 1, 2, 3]'],
     correct: 2,
     explanation: 'Ребро 2–3 записано только как 2 → 3. Список соседей 3 пуст (defaultdict вернёт []), поэтому BFS из 3 никуда не уйдёт: [3]. Правильный ответ для undirected графа — [3, 2, 1, 0].',
@@ -239,6 +251,22 @@ while queue:
     for v in graph[u]:
         if v not in visited:
             queue.append(v)`,
+    codeCpp: `vector<vector<int>> graph;   // A,B,C,D = 0,1,2,3
+vector<bool> visited(4, false);
+int start = 0;
+
+queue<int> q;
+q.push(start);
+while (!q.empty()) {
+    int u = q.front();
+    q.pop();
+    if (visited[u])
+        continue;
+    visited[u] = true;
+    for (int v : graph[u])
+        if (!visited[v])
+            q.push(v);
+}`,
     options: ['1', '2', '3', '0'],
     correct: 1,
     explanation: 'pop A → [B, C]. pop B → D не помечена → [C, D]. pop C → D всё ещё не помечена → [D, D]. Два раза. При пометке во время добавления было бы 1.',

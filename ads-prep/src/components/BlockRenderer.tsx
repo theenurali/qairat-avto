@@ -59,7 +59,7 @@ function RenderBlock({ b, visualizers }: { b: Block; visualizers: Record<string,
       );
     }
     case 'code':
-      return <CodeBlock code={b.code} caption={b.caption} explain={b.explain} />;
+      return <CodeBlock code={b.code} cpp={b.cpp} caption={b.caption} explain={b.explain} cppExplain={b.cppExplain} />;
     case 'table':
       return (
         <div className="my-4 overflow-x-auto rounded-xl border border-slate-800">

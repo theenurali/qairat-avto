@@ -67,6 +67,35 @@ def search(table, key):
             return True
     return False`,
   bugLine: 9,
+  buggyCodeCpp: `const int EMPTY = -1;
+
+void remove(vector<int>& table, int key) {
+    int m = table.size();
+    int h = key % m;
+    for (int i = 0; i < m; i++) {
+        int idx = (h + i) % m;
+        if (table[idx] == EMPTY)
+            return;
+        if (table[idx] == key) {
+            table[idx] = EMPTY;      // удаляем
+            return;
+        }
+    }
+}
+
+bool search(const vector<int>& table, int key) {
+    int m = table.size();
+    int h = key % m;
+    for (int i = 0; i < m; i++) {
+        int idx = (h + i) % m;
+        if (table[idx] == EMPTY)
+            return false;
+        if (table[idx] == key)
+            return true;
+    }
+    return false;
+}`,
+  bugLineCpp: 11,
   hint: 'Поиск останавливается на первой пустой ячейке (None). Что если ключ был размещён ДАЛЬШЕ удалённой ячейки из-за collision?',
   fields: [
     { name: 'm', label: 'Размер таблицы m', placeholder: '7' },
@@ -85,6 +114,10 @@ def search(table, key):
     'm = 7: ключ 3 → slot 3, ключ 10 → h = 3 занят → slot 4. delete(3) ставит None в slot 3. search(10) начинает с slot 3, видит None и решает, что ключа нет — хотя 10 лежит в slot 4. Ошибка: при Open Addressing нельзя ставить EMPTY при удалении — это разрывает цепочку проб. Нужен tombstone (DEL): search его пропускает, insert может переиспользовать.',
   fixedCode: `        if table[idx] == key:
             table[idx] = DEL         # tombstone, а не None`,
+  fixedCodeCpp: `        if (table[idx] == key) {
+            table[idx] = DEL;        // tombstone (const int DEL = -2), а не EMPTY
+            return;
+        }`,
 };
 
 function runWrap(m: number, keys: number[], buggy: boolean): string {
@@ -124,6 +157,23 @@ const cxNoWrap: CounterexampleTask = {
                 break
     return table`,
   bugLine: 6,
+  buggyCodeCpp: `const int EMPTY = -1;
+
+vector<int> insert_all(int m, const vector<int>& keys) {
+    vector<int> table(m, EMPTY);
+    for (int key : keys) {
+        int h = key % m;
+        for (int i = 0; i < m; i++) {
+            int idx = h + i;
+            if (table.at(idx) == EMPTY) {   // at() бросает out_of_range
+                table.at(idx) = key;
+                break;
+            }
+        }
+    }
+    return table;
+}`,
+  bugLineCpp: 8,
   hint: 'Что будет, если h + i ≥ m?',
   fields: [
     { name: 'm', label: 'Размер таблицы m', placeholder: '5' },
@@ -140,8 +190,9 @@ const cxNoWrap: CounterexampleTask = {
     return compareRuns(() => runWrap(ms.value!, pk.values!, true), () => runWrap(ms.value!, pk.values!, false));
   },
   explanation:
-    'm = 5: ключ 4 → slot 4. Ключ 9: h = 4 занят, следующая проба idx = 4 + 1 = 5 — такой ячейки нет → IndexError. Правильно: idx = (h + i) % m = 0. Ошибка проявляется, только когда collision случается в ПОСЛЕДНИХ ячейках таблицы — поэтому тест «1, 2, 3» её не находит.',
+    'm = 5: ключ 4 → slot 4. Ключ 9: h = 4 занят, следующая проба idx = 4 + 1 = 5 — такой ячейки нет → IndexError (в C++: table[idx] — неопределённое поведение, table.at(idx) бросает out_of_range). Правильно: idx = (h + i) % m = 0. Ошибка проявляется, только когда collision случается в ПОСЛЕДНИХ ячейках таблицы — поэтому тест «1, 2, 3» её не находит.',
   fixedCode: `            idx = (h + i) % m          # wrap-around`,
+  fixedCodeCpp: `            int idx = (h + i) % m;        // wrap-around`,
 };
 
 function runChainSize(ops: number[], buggy: boolean, m = 5): string {
@@ -174,6 +225,20 @@ const cxChainDup: CounterexampleTask = {
         self.buckets[b].append(key)
         self.size += 1`,
   bugLine: 8,
+  buggyCodeCpp: `class HashSet {
+public:
+    vector<vector<int>> buckets;
+    int size = 0;
+
+    HashSet(int m = 5) : buckets(m) {}
+
+    void insert(int key) {
+        int b = key % (int)buckets.size();
+        buckets[b].push_back(key);
+        size++;
+    }
+};`,
+  bugLineCpp: 10,
   hint: 'Что произойдёт при повторной вставке того же ключа?',
   fields: [{ name: 'keys', label: 'Последовательность insert', placeholder: '1, 6, 11' }],
   initial: { keys: '1, 6, 11' },
@@ -188,6 +253,10 @@ const cxChainDup: CounterexampleTask = {
   fixedCode: `        if key not in self.buckets[b]:
             self.buckets[b].append(key)
             self.size += 1`,
+  fixedCodeCpp: `        if (find(buckets[b].begin(), buckets[b].end(), key) == buckets[b].end()) {
+            buckets[b].push_back(key);
+            size++;
+        }`,
 };
 
 function sumHash(s: string): number {
@@ -226,6 +295,24 @@ def contains(buckets, s):
             return True
     return False`,
   bugLine: 9,
+  buggyCodeCpp: `int h(const string& s) {
+    int sum = 0;
+    for (char c : s) sum += c;
+    return sum;
+}
+
+void insert(vector<vector<pair<string, int>>>& buckets, const string& s) {
+    buckets[h(s) % 7].push_back({s, h(s)});
+}
+
+bool contains(const vector<vector<pair<string, int>>>& buckets, const string& s) {
+    for (const auto& [key, hv] : buckets[h(s) % 7]) {
+        if (hv == h(s))
+            return true;
+    }
+    return false;
+}`,
+  bugLineCpp: 13,
   hint: 'Одинаковый хеш не означает одинаковый ключ. Какие разные строки дают одинаковую сумму кодов?',
   fields: [
     { name: 'words', label: 'Вставленные строки (через запятую)', placeholder: 'cat, dog' },
@@ -245,6 +332,8 @@ def contains(buckets, s):
     '"listen" и "silent" — анаграммы: одинаковые буквы → одинаковая сумма кодов → одинаковый hash. Код сравнивает только хеши и возвращает True для строки, которой нет в таблице (false positive). Collision — это нормально, но внутри bucket обязательно нужно сравнивать сами ключи (key == s).',
   fixedCode: `        if key == s:                # сравниваем КЛЮЧИ, а не хеши
             return True`,
+  fixedCodeCpp: `        if (key == s)               // сравниваем КЛЮЧИ, а не хеши
+            return true;`,
 };
 
 function rkCustom(text: string, pat: string, p: RKParams, mode: 'noverify' | 'noh' | 'bound'): number[] {
@@ -305,6 +394,25 @@ const cxRkNoVerify: CounterexampleTask = {
             t = (d * (t - int(text[s]) * h) + int(text[s + m])) % q
     return res`,
   bugLine: 10,
+  buggyCodeCpp: `vector<int> rabin_karp(const string& text, const string& pat, long long d = 10, long long q = 13) {
+    int n = text.size(), m = pat.size();
+    long long h = 1;
+    for (int i = 0; i < m - 1; i++) h = h * d % q;
+    long long p = 0, t = 0;
+    for (int i = 0; i < m; i++) {
+        p = (d * p + (pat[i] - '0')) % q;
+        t = (d * t + (text[i] - '0')) % q;
+    }
+    vector<int> res;
+    for (int s = 0; s <= n - m; s++) {
+        if (p == t)
+            res.push_back(s);           // совпал хеш → считаем вхождением
+        if (s < n - m)
+            t = ((d * (t - (text[s] - '0') * h) + (text[s + m] - '0')) % q + q) % q;
+    }
+    return res;
+}`,
+  bugLineCpp: 12,
   hint: 'Хеш — это остаток по модулю 13. Сколько разных чисел может дать одинаковый остаток?',
   fields: [
     { name: 'text', label: 'text (цифры)', placeholder: '123123' },
@@ -321,6 +429,8 @@ const cxRkNoVerify: CounterexampleTask = {
     'Хеш окна из цифр — это само число mod 13. Числа 13 и 26 дают одинаковый остаток 0. text = "26", pattern = "13": хеш окна "26" = 0 = хеш образца → багованный код возвращает [0], хотя "26" ≠ "13" (spurious hit). Классический пример из CLRS: text = "2359023141526739921", pattern = "31415" — окно "67399" в позиции 12 тоже даёт хеш 7, как и образец. Вывод: после совпадения хешей ОБЯЗАТЕЛЬНО сравнивать строки посимвольно. Чтобы найти такой контрпример, ищите два разных числа длины m с одинаковым остатком по q (отличаются на кратное q).',
   fixedCode: `        if p == t and text[s:s + m] == pat:   # проверяем символы
             res.append(s)`,
+  fixedCodeCpp: `        if (p == t && text.compare(s, m, pat) == 0)   // проверяем символы
+            res.push_back(s);`,
 };
 
 const cxRkNoH: CounterexampleTask = {
@@ -344,6 +454,23 @@ const cxRkNoH: CounterexampleTask = {
             t = (d * (t - int(text[s])) + int(text[s + m])) % q
     return res`,
   bugLine: 12,
+  buggyCodeCpp: `vector<int> rabin_karp(const string& text, const string& pat, long long d = 10, long long q = 13) {
+    int n = text.size(), m = pat.size();
+    long long p = 0, t = 0;
+    for (int i = 0; i < m; i++) {
+        p = (d * p + (pat[i] - '0')) % q;
+        t = (d * t + (text[i] - '0')) % q;
+    }
+    vector<int> res;
+    for (int s = 0; s <= n - m; s++) {
+        if (p == t && text.compare(s, m, pat) == 0)
+            res.push_back(s);
+        if (s < n - m)
+            t = ((d * (t - (text[s] - '0')) + (text[s + m] - '0')) % q + q) % q;
+    }
+    return res;
+}`,
+  bugLineCpp: 13,
   hint: 'Старшая цифра окна весит d^(m−1), а не 1. При каком m это не имеет значения?',
   fields: [
     { name: 'text', label: 'text (цифры)', placeholder: '1212' },
@@ -361,6 +488,10 @@ const cxRkNoH: CounterexampleTask = {
   fixedCode: `    h = pow(d, m - 1, q)
     ...
             t = (d * (t - int(text[s]) * h) + int(text[s + m])) % q`,
+  fixedCodeCpp: `    long long h = 1;
+    for (int i = 0; i < m - 1; i++) h = h * d % q;   // h = d^(m-1) mod q
+    ...
+            t = ((d * (t - (text[s] - '0') * h) + (text[s + m] - '0')) % q + q) % q;`,
 };
 
 const cxRkBound: CounterexampleTask = {
@@ -384,6 +515,24 @@ const cxRkBound: CounterexampleTask = {
         t = (d * (t - ord(text[s]) * h) + ord(text[s + m])) % q
     return res`,
   bugLine: 9,
+  buggyCodeCpp: `vector<int> rabin_karp(const string& text, const string& pat, long long d = 256, long long q = 101) {
+    int n = text.size(), m = pat.size();
+    long long h = 1;
+    for (int i = 0; i < m - 1; i++) h = h * d % q;
+    long long p = 0, t = 0;
+    for (int i = 0; i < m; i++) {
+        p = (d * p + (unsigned char)pat[i]) % q;
+        t = (d * t + (unsigned char)text[i]) % q;
+    }
+    vector<int> res;
+    for (int s = 0; s < n - m; s++) {
+        if (p == t && text.compare(s, m, pat) == 0)
+            res.push_back(s);
+        t = ((d * (t - (unsigned char)text[s] * h) + (unsigned char)text[s + m]) % q + q) % q;
+    }
+    return res;
+}`,
+  bugLineCpp: 11,
   hint: 'Сколько всего окон длины m в тексте длины n? Какое окно последнее?',
   fields: [
     { name: 'text', label: 'text', placeholder: 'abcabc' },
@@ -404,6 +553,11 @@ const cxRkBound: CounterexampleTask = {
         ...
         if s < n - m:
             t = (d * (t - ord(text[s]) * h) + ord(text[s + m])) % q`,
+  fixedCodeCpp: `    for (int s = 0; s <= n - m; s++) {
+        ...
+        if (s < n - m)
+            t = ((d * (t - (unsigned char)text[s] * h) + (unsigned char)text[s + m]) % q + q) % q;
+    }`,
 };
 
 function runResize(keys: number[], query: number, buggy: boolean): string {
@@ -461,6 +615,29 @@ def insert(self, key):
     if self.n / self.m > 0.5:
         self.resize()`,
   bugLine: 6,
+  buggyCodeCpp: `const int EMPTY = -1;
+
+struct HashTable {                       // linear probing, начальный m = 4
+    int m = 4, n = 0;
+    vector<int> table = vector<int>(4, EMPTY);
+    void put(int key);                   // linear probing по key % m
+
+    void resize() {
+        vector<int> old = table;
+        m *= 2;
+        table.assign(m, EMPTY);
+        for (int i = 0; i < (int)old.size(); i++)
+            table[i] = old[i];           // копируем на тот же индекс
+    }
+
+    void insert(int key) {
+        put(key);
+        n++;
+        if ((double)n / m > 0.5)
+            resize();
+    }
+};`,
+  bugLineCpp: 13,
   hint: 'После resize меняется m — значит меняется и key % m. Где search будет искать ключ?',
   fields: [
     { name: 'keys', label: 'Вставляемые ключи', placeholder: '1, 2, 3' },
@@ -481,6 +658,9 @@ def insert(self, key):
   fixedCode: `    for key in old:
         if key is not None and key != DEL:
             self._put(key)           # заново вычисляем key % new_m`,
+  fixedCodeCpp: `        for (int key : old)
+            if (key != EMPTY && key != DEL)
+                put(key);                // заново вычисляем key % new_m`,
 };
 
 export const CX_M1: CounterexampleTask[] = [cxChainDup, cxNoWrap, cxRkBound, cxDeleteEmpty, cxHashNotKey, cxRkNoVerify, cxRkNoH, cxResize];

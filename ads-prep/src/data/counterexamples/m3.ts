@@ -57,6 +57,29 @@ def bfs(adj, s):
                 q.append(v)
     return order`,
   bugLine: 9,
+  buggyCodeCpp: `vector<int> bfs(const vector<vector<int>>& adj, int s) {
+    vector<bool> visited(adj.size(), false);
+    queue<int> q;
+    q.push(s);
+    vector<int> order;
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        visited[u] = true;               // отмечаем только сейчас
+        order.push_back(u);
+        for (int v : adj[u])
+            if (!visited[v])
+                q.push(v);
+    }
+    return order;
+}`,
+  bugLineCpp: 9,
+  fixedCodeCpp: `        for (int v : adj[u])
+            if (!visited[v]) {
+                visited[v] = true;       // сразу при добавлении
+                q.push(v);
+            }
+    // и visited[s] = true перед циклом`,
   hint: 'Вершина может лежать в очереди, но ещё не быть visited. Что если до неё есть два пути одинаковой длины?',
   fields: GRAPH_FIELDS,
   initial: { vertices: '', edges: 'A-B, B-C, C-D', start: 'A' },
@@ -110,6 +133,28 @@ const cxBfsStack: CounterexampleTask = {
                 st.append(v)
     return dist`,
   bugLine: 5,
+  buggyCodeCpp: `vector<int> shortest(const vector<vector<int>>& adj, int s) {
+    vector<int> dist(adj.size(), -1);
+    dist[s] = 0;
+    vector<int> st = {s};
+    while (!st.empty()) {
+        int u = st.back();               // берём ПОСЛЕДНИЙ
+        st.pop_back();
+        for (int v : adj[u]) {
+            if (dist[v] == -1) {
+                dist[v] = dist[u] + 1;
+                st.push_back(v);
+            }
+        }
+    }
+    return dist;
+}`,
+  bugLineCpp: 6,
+  fixedCodeCpp: `    queue<int> q;
+    q.push(s);
+    while (!q.empty()) {
+        int u = q.front();               // FIFO
+        q.pop();`,
   hint: 'Со стеком обход уходит «вглубь». Может ли вершина впервые обнаружиться по длинному пути, хотя есть короткий?',
   fields: GRAPH_FIELDS,
   initial: { vertices: '', edges: 'S-A, S-B, A-C', start: 'S' },
@@ -176,6 +221,36 @@ def count_components(vertices, edges):
                     q.append(v)
     return count`,
   bugLine: 9,
+  buggyCodeCpp: `int count_components(const vector<int>& vertices, const vector<pair<int, int>>& edges) {
+    map<int, vector<int>> adj;
+    for (auto [u, v] : edges) {
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
+    set<int> seen;
+    int count = 0;
+    for (auto& [s, nbrs] : adj) {        // перебираем вершины из adj
+        if (seen.count(s))
+            continue;
+        count++;
+        seen.insert(s);
+        queue<int> q;
+        q.push(s);
+        while (!q.empty()) {
+            int u = q.front();
+            q.pop();
+            for (int v : adj[u]) {
+                if (!seen.count(v)) {
+                    seen.insert(v);
+                    q.push(v);
+                }
+            }
+        }
+    }
+    return count;
+}`,
+  bugLineCpp: 9,
+  fixedCodeCpp: `    for (int s : vertices) {             // все вершины, включая изолированные`,
   hint: 'Какие вершины никогда не попадут в adj, если он строится только по Edge List?',
   fields: [
     { name: 'vertices', label: 'Все вершины', placeholder: '1 2 3 4' },
@@ -223,6 +298,21 @@ const cxOneWay: CounterexampleTask = {
 
 order = bfs(build_adj(vertices, edges), start)`,
   bugLine: 4,
+  buggyCodeCpp: `vector<vector<int>> build_adj(int n, const vector<pair<int, int>>& edges) {
+    vector<vector<int>> adj(n);
+    for (auto [u, v] : edges)
+        adj[u].push_back(v);
+    return adj;
+}
+
+vector<int> bfs(const vector<vector<int>>& adj, int start);   // корректный BFS
+
+// order = bfs(build_adj(n, edges), start);`,
+  bugLineCpp: 4,
+  fixedCodeCpp: `    for (auto [u, v] : edges) {
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }`,
   hint: 'Ребро u–v неориентированного графа можно пройти в обе стороны. Откуда начать BFS, чтобы это стало важно?',
   fields: GRAPH_FIELDS,
   initial: { vertices: '', edges: 'A-B, A-C, B-D', start: 'A' },
@@ -287,6 +377,39 @@ const cxParent: CounterexampleTask = {
         t = parent[t]
     return path[::-1]`,
   bugLine: 8,
+  buggyCodeCpp: `vector<int> shortest_path(const vector<vector<int>>& adj, int s, int t) {
+    vector<int> parent(adj.size(), -1);
+    vector<bool> visited(adj.size(), false);
+    visited[s] = true;
+    queue<int> q;
+    q.push(s);
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        for (int v : adj[u]) {
+            parent[v] = u;               // запоминаем, откуда пришли
+            if (!visited[v]) {
+                visited[v] = true;
+                q.push(v);
+            }
+        }
+    }
+    vector<int> path;
+    while (t != -1) {
+        path.push_back(t);
+        t = parent[t];
+    }
+    reverse(path.begin(), path.end());
+    return path;
+}`,
+  bugLineCpp: 11,
+  fixedCodeCpp: `        for (int v : adj[u]) {
+            if (!visited[v]) {
+                visited[v] = true;
+                parent[v] = u;
+                q.push(v);
+            }
+        }`,
   hint: 'parent[v] меняется каждый раз, когда v встречается как сосед — даже если v уже обнаружена раньше по более короткому пути.',
   fields: [
     { name: 'vertices', label: 'Вершины (необязательно)', placeholder: 'S A B T' },

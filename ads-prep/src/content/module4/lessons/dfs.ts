@@ -52,6 +52,33 @@ export const lessonDfs: Lesson = {
 
     visit(start)
     return order`,
+      cpp: `// вершины A,B,C,… = 0,1,2,…
+vector<int> dfs(const vector<vector<int>>& graph, int start) {
+    vector<bool> visited(graph.size(), false);
+    vector<int> order;
+
+    function<void(int)> visit = [&](int u) {
+        visited[u] = true;          // помечаем при входе
+        order.push_back(u);         // preorder
+        for (int v : graph[u])      // соседи в порядке adjacency list
+            if (!visited[v])
+                visit(v);           // уходим вглубь
+        // здесь все соседи обработаны: u «завершена» (postorder)
+    };
+
+    visit(start);
+    return order;
+}`,
+      cppExplain: [
+        { line: 1, text: "В C++ вершины удобно нумеровать 0..n−1: тогда graph — это vector<vector<int>>, а visited — vector<bool> с проверкой за O(1)." },
+        { line: 3, text: "visited[v] — массив флагов вместо Python-set: доступ по индексу за O(1)." },
+        { line: 6, text: "Рекурсивная лямбда объявляется через function<void(int)> — обычная auto-лямбда не может вызвать саму себя. [&] — захват visited и order по ссылке. Каждый вызов кладёт кадр в call stack." },
+        { line: 7, text: "Помечаем u ДО обхода соседей. Если пометить позже, на цикле A–B–A мы вернёмся в A и уйдём в бесконечную рекурсию." },
+        { line: 9, text: "Range-based for перебирает соседей u. Порядок перебора определяет порядок обхода." },
+        { line: 10, text: "Главная проверка: в уже посещённую вершину не идём." },
+        { line: 11, text: "Рекурсивный вызов = «шагнуть в соседнюю комнату». Пока он не вернётся, цикл for в u стоит на паузе." },
+        { line: 12, text: "Сюда попадаем, когда все соседи u обработаны — это и есть backtracking (возврат)." },
+      ],
       explain: [
         { line: 2, text: 'visited — множество (set): проверка `v in visited` работает за O(1) в среднем.' },
         { line: 5, text: 'Вложенная функция visit(u) — один «шаг вглубь». Каждый вызов кладёт кадр в call stack.' },
@@ -104,6 +131,25 @@ def visit(u):
             visit(v)
     time += 1
     fin[u] = time               # finish time`,
+      cpp: `int timer = 0;                      // «часы» (имя time занято функцией std::time)
+vector<vector<int>> graph;
+vector<int> disc, fin;              // disc[u] == 0 ⇔ u ещё не посещена (размер n)
+
+void visit(int u) {
+    timer++;
+    disc[u] = timer;                // discovery time
+    for (int v : graph[u])
+        if (disc[v] == 0)           // disc служит и как visited
+            visit(v);
+    timer++;
+    fin[u] = timer;                 // finish time
+}`,
+      cppExplain: [
+        { line: 1, text: "В C++ глобальная переменная с именем time конфликтует с функцией std::time, поэтому счётчик назван timer. Слово global, как в Python, не нужно — функция и так видит глобальные переменные." },
+        { line: 6, text: "Часы тикают при каждом входе и выходе — всего 2V отметок." },
+        { line: 9, text: "Времена начинаются с 1, поэтому disc[v] == 0 означает «ещё не посещена»." },
+        { line: 12, text: "finish time ставится после всех потомков — поэтому у предка f больше, чем у потомков." },
+      ],
       explain: [
         { line: 6, text: 'Часы тикают при каждом входе и выходе — всего 2V отметок.' },
         { line: 9, text: 'Вершина посещена ⇔ у неё уже есть discovery time.' },
@@ -156,6 +202,29 @@ def visit(u):
             count += 1         # нашли новую компоненту
             visit(s)
     return count`,
+      cpp: `int count_components(const vector<vector<int>>& graph) {
+    vector<bool> visited(graph.size(), false);
+    int count = 0;
+
+    function<void(int)> visit = [&](int u) {
+        visited[u] = true;
+        for (int v : graph[u])
+            if (!visited[v])
+                visit(v);
+    };
+
+    for (int s = 0; s < (int)graph.size(); s++) {   // внешний цикл по ВСЕМ вершинам
+        if (!visited[s]) {
+            count++;                // нашли новую компоненту
+            visit(s);
+        }
+    }
+    return count;
+}`,
+      cppExplain: [
+        { line: 12, text: "Без этого цикла вершины других компонент (и изолированные вершины!) никогда не будут посещены. В vector<vector<int>> изолированная вершина — просто пустой список, она всё равно перебирается." },
+        { line: 14, text: "Каждый новый запуск DFS начинает новую компоненту." },
+      ],
       explain: [
         { line: 11, text: 'Без этого цикла вершины других компонент (и изолированные вершины!) никогда не будут посещены.' },
         { line: 13, text: 'Каждый новый запуск DFS начинает новую компоненту.' },
@@ -186,6 +255,33 @@ def visit(u):
         if s not in visited and visit(s, None):
             return True
     return False`,
+      cpp: `bool has_cycle_undirected(const vector<vector<int>>& graph) {
+    vector<bool> visited(graph.size(), false);
+
+    function<bool(int, int)> visit = [&](int u, int parent) {
+        visited[u] = true;
+        for (int v : graph[u]) {
+            if (v == parent)
+                continue;           // ребро назад к родителю — это не цикл
+            if (visited[v])
+                return true;        // visited и не родитель → цикл
+            if (visit(v, u))
+                return true;
+        }
+        return false;
+    };
+
+    for (int s = 0; s < (int)graph.size(); s++)    // внешний цикл: граф может быть несвязным
+        if (!visited[s] && visit(s, -1))           // -1 = «нет родителя» (None в Python)
+            return true;
+    return false;
+}`,
+      cppExplain: [
+        { line: 7, text: "В неориентированном графе ребро u–parent видно с обеих сторон. Без этой проверки любое ребро выглядело бы как цикл." },
+        { line: 9, text: "Мы пришли в уже посещённую вершину не по ребру к родителю → есть другой путь к ней → цикл." },
+        { line: 17, text: "Цикл может лежать в любой компоненте, поэтому проверяем все." },
+        { line: 18, text: "У корня нет родителя: в C++ вместо None передаём −1 — такого номера вершины не бывает." },
+      ],
       explain: [
         { line: 7, text: 'В неориентированном графе ребро u–parent видно с обеих сторон. Без этой проверки любое ребро выглядело бы как цикл.' },
         { line: 9, text: 'Мы пришли в уже посещённую вершину не по ребру к родителю → есть другой путь к ней → цикл.' },
@@ -216,6 +312,35 @@ def has_cycle_directed(graph):
         return False
 
     return any(color[u] == WHITE and visit(u) for u in graph)`,
+      cpp: `enum Color { WHITE, GRAY, BLACK };
+
+bool has_cycle_directed(const vector<vector<int>>& graph) {
+    vector<Color> color(graph.size(), WHITE);
+
+    function<bool(int)> visit = [&](int u) {
+        color[u] = GRAY;                // u на текущем пути
+        for (int v : graph[u]) {
+            if (color[v] == GRAY)
+                return true;            // back edge → цикл
+            if (color[v] == WHITE && visit(v))
+                return true;
+        }
+        color[u] = BLACK;               // u и все потомки обработаны
+        return false;
+    };
+
+    for (int u = 0; u < (int)graph.size(); u++)
+        if (color[u] == WHITE && visit(u))
+            return true;
+    return false;
+}`,
+      cppExplain: [
+        { line: 1, text: "enum задаёт три именованных цвета — как константы WHITE, GRAY, BLACK в Python." },
+        { line: 7, text: "GRAY = «сейчас в стеке вызовов»." },
+        { line: 9, text: "Попали в вершину, из которой ещё не вышли, — значит, по рёбрам можно вернуться в неё: цикл." },
+        { line: 14, text: "Становится BLACK только после всех потомков. Ребро в BLACK — просто уже исследованная ветка." },
+        { line: 18, text: "Запуск из каждой WHITE вершины — граф может быть несвязным (аналог any(...) в Python)." },
+      ],
       explain: [
         { line: 7, text: 'GRAY = «сейчас в стеке вызовов».' },
         { line: 9, text: 'Попали в вершину, из которой ещё не вышли, — значит, по рёбрам можно вернуться в неё: цикл.' },

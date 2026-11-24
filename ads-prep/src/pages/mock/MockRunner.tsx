@@ -45,7 +45,7 @@ function ItemView({ item, ans, onAnswer }: { item: MockItem; ans: MockAnswer | u
           <Callout kind="note" title="Что функция должна делать">
             <Markup text={item.task.goal} />
           </Callout>
-          <CodeBlock code={item.task.buggyCode} caption="Код с ошибкой" />
+          <CodeBlock code={item.task.buggyCode} cpp={item.task.buggyCodeCpp} caption="Код с ошибкой" />
           <div className="mt-3 mb-2 text-sm font-medium text-slate-200">Введите входные данные, на которых этот код выдаёт НЕПРАВИЛЬНЫЙ результат:</div>
           <CxFields task={item.task} values={ans?.fields ?? {}} onChange={(f) => onAnswer({ fields: f })} />
           <div className="mt-2 text-xs text-slate-500">На экзамене нельзя запустить код — проследите его вручную. Проверка будет после сдачи.</div>

@@ -212,6 +212,20 @@ def search(table, key):
         if table[idx] == key:
             return idx
     return -1`,
+    codeCpp: `const int EMPTY = -1;
+vector<int> table = {EMPTY, 15, 8, EMPTY, EMPTY, EMPTY, EMPTY};   // m = 7
+
+int search(const vector<int>& table, int key) {
+    int m = table.size();
+    for (int i = 0; i < m; i++) {
+        int idx = (key % m + i) % m;
+        if (table[idx] == EMPTY)
+            return -1;
+        if (table[idx] == key)
+            return idx;
+    }
+    return -1;
+}`,
     options: ['1', '2', '3', '7'],
     correct: 2,
     explanation: '22 mod 7 = 1. slot 1 = 15 ≠ 22 → slot 2 = 8 ≠ 22 → slot 3 = None → стоп, return −1. Проверено 3 ячейки.',
@@ -475,6 +489,13 @@ def search(table, key):
         result.append(s)
     if s < n - m:
         t = (d * (t - ord(text[s]) * h) + ord(text[s + m])) % q`,
+    codeCpp: `// fragment: тело цикла Rabin-Karp
+for (int s = 0; s <= n - m; s++) {
+    if (p == t && text.compare(s, m, pattern) == 0)
+        result.push_back(s);
+    if (s < n - m)
+        t = ((d * (t - text[s] * h) + text[s + m]) % q + q) % q;
+}`,
     options: ['pow(d, m, q)', 'pow(d, m - 1, q)', 'd * m % q', 'pow(m, d - 1, q)'],
     correct: 1,
     explanation: 'h — вес самого левого символа окна длины m: d^(m−1) mod q. С d^m уходящий символ вычитался бы неправильно.',

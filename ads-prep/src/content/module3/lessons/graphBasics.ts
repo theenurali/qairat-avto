@@ -100,6 +100,34 @@ export const graphBasicsLesson: Lesson = {
     {
       kind: 'code',
       caption: 'Самый частый способ: словарь «вершина → список соседей»',
+      cpp: `// вершины A,B,C,D,E,F = 0,1,2,3,4,5
+vector<vector<int>> graph = {
+    {1, 2},        // A: B, C
+    {0, 3},        // B: A, D
+    {0, 3, 4},     // C: A, D, E
+    {1, 2, 5},     // D: B, C, F
+    {2, 5},        // E: C, F
+    {3, 4},        // F: D, E
+};
+
+vector<int> degrees(const vector<vector<int>>& graph) {
+    vector<int> deg;
+    for (const auto& neighbours : graph)
+        deg.push_back(neighbours.size());
+    return deg;
+}
+
+int main() {
+    vector<int> deg = degrees(graph);
+    int num_edges = accumulate(deg.begin(), deg.end(), 0) / 2;  // handshaking lemma
+    cout << num_edges << endl;                                   // 7
+}`,
+      cppExplain: [
+        { line: 2, text: "Граф храним как vector<vector<int>>: индекс — номер вершины, внутри — список соседей (Adjacency List). Буквы заменены числами 0..5." },
+        { line: 3, text: "У A (0) два соседа. В undirected графе ребро A–B записано дважды: 1 есть у 0, и 0 есть у 1." },
+        { line: 14, text: "Степень вершины = размер её списка соседей; size() у vector — O(1)." },
+        { line: 20, text: "Каждое ребро посчитано дважды (у обоих концов), поэтому сумму степеней делим на 2. accumulate суммирует элементы vector." },
+      ],
       code: `graph = {
     'A': ['B', 'C'],
     'B': ['A', 'D'],
@@ -125,6 +153,24 @@ print(deg, num_edges)                # ... 7`,
     {
       kind: 'code',
       caption: 'Directed граф: in-degree и out-degree',
+      cpp: `vector<vector<int>> digraph = {{1, 2}, {3}, {3}, {}};
+
+int main() {
+    int n = digraph.size();
+    vector<int> out_deg(n), in_deg(n, 0);
+    for (int v = 0; v < n; v++) out_deg[v] = digraph[v].size();
+    for (int u = 0; u < n; u++)
+        for (int v : digraph[u])
+            in_deg[v]++;          // дуга u -> v входит в v
+
+    // out_deg = {2, 1, 1, 0}
+    // in_deg  = {0, 1, 1, 2}
+}`,
+      cppExplain: [
+        { line: 1, text: "В directed графе дуга 0 → 1 хранится только в списке вершины 0." },
+        { line: 6, text: "out-degree — размер списка исходящих дуг." },
+        { line: 7, text: "Для in-degree проходим по всем дугам: O(V + E). Это пригодится в Kahn's Algorithm (Module 4)." },
+      ],
       code: `digraph = {0: [1, 2], 1: [3], 2: [3], 3: []}
 
 out_deg = {v: len(digraph[v]) for v in digraph}

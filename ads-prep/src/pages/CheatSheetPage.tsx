@@ -70,13 +70,89 @@ const RULES = [
   { t: 'Указывайте, в каком случае', d: 'Hash table: average O(1), но worst O(n). Rabin-Karp: average O(n+m), worst O(nm). На экзамене всегда уточняйте случай!' },
 ];
 
-const EXERCISES = [
-  { code: `for i in range(n):\n    for j in range(i, n):\n        print(i, j)`, a: '**O(n²)**. Внутренний цикл выполняется n + (n−1) + … + 1 = n(n+1)/2 раз. Константа 1/2 отбрасывается.' },
-  { code: `i = 1\nwhile i < n:\n    i *= 2`, a: '**O(log n)**. i удваивается: 1, 2, 4, …, — после k шагов i = 2^k ≥ n, значит k = log₂ n.' },
-  { code: `for u in vertices:\n    for v in adj[u]:\n        work(u, v)`, a: '**O(V + E)** для Adjacency List: внешний цикл V раз, а внутренний СУММАРНО по всем u выполняется Σdeg(u) = E (или 2E) раз. Это НЕ O(V·E)!' },
-  { code: `for u in range(V):\n    for v in range(V):\n        if M[u][v]:\n            work(u, v)`, a: '**O(V²)** — то же самое, но с Adjacency Matrix: проверяем все V² ячеек независимо от числа рёбер.' },
-  { code: `def f(text, pat):\n    lps = build_lps(pat)     # O(m)\n    i = j = 0\n    while i < len(text):\n        ...  # KMP step`, a: '**O(n + m)**. Построение LPS O(m) + поиск O(n), т.к. i не уменьшается, а j уменьшается не больше раз, чем рос.' },
-  { code: `table = [None] * m\nfor k in keys:            # n ключей\n    insert(table, k)      # linear probing`, a: 'Average **O(n)** (каждая вставка O(1) в среднем при небольшом α), worst **O(n²)** (если все ключи дают один и тот же индекс: i-я вставка делает i проб). Space **O(m)**.' },
+export const CHEAT_EXERCISES: { code: string; cpp: string; a: string }[] = [
+  {
+    code: `for i in range(n):
+    for j in range(i, n):
+        print(i, j)`,
+    cpp: `void f(int n) {
+    for (int i = 0; i < n; i++)
+        for (int j = i; j < n; j++)
+            cout << i << " " << j << endl;
+}`,
+    a: '**O(n²)**. Внутренний цикл выполняется n + (n−1) + … + 1 = n(n+1)/2 раз. Константа 1/2 отбрасывается.',
+  },
+  {
+    code: `i = 1
+while i < n:
+    i *= 2`,
+    cpp: `void f(int n) {
+    int i = 1;
+    while (i < n)
+        i *= 2;
+}`,
+    a: '**O(log n)**. i удваивается: 1, 2, 4, …, — после k шагов i = 2^k ≥ n, значит k = log₂ n.',
+  },
+  {
+    code: `for u in vertices:
+    for v in adj[u]:
+        work(u, v)`,
+    cpp: `void work(int u, int v);
+
+void f(const vector<vector<int>>& adj) {
+    for (int u = 0; u < (int)adj.size(); u++)
+        for (int v : adj[u])
+            work(u, v);
+}`,
+    a: '**O(V + E)** для Adjacency List: внешний цикл V раз, а внутренний СУММАРНО по всем u выполняется Σdeg(u) = E (или 2E) раз. Это НЕ O(V·E)!',
+  },
+  {
+    code: `for u in range(V):
+    for v in range(V):
+        if M[u][v]:
+            work(u, v)`,
+    cpp: `void work(int u, int v);
+
+void f(const vector<vector<int>>& M) {
+    int V = M.size();
+    for (int u = 0; u < V; u++)
+        for (int v = 0; v < V; v++)
+            if (M[u][v])
+                work(u, v);
+}`,
+    a: '**O(V²)** — то же самое, но с Adjacency Matrix: проверяем все V² ячеек независимо от числа рёбер.',
+  },
+  {
+    code: `def f(text, pat):
+    lps = build_lps(pat)     # O(m)
+    i = j = 0
+    while i < len(text):
+        ...  # KMP step`,
+    cpp: `vector<int> buildLps(const string& pat);   // O(m)
+
+void f(const string& text, const string& pat) {
+    vector<int> lps = buildLps(pat);
+    int i = 0, j = 0;
+    while (i < (int)text.size()) {
+        // ... KMP step: i++ или j = lps[j - 1]
+        i++;
+    }
+}`,
+    a: '**O(n + m)**. Построение LPS O(m) + поиск O(n), т.к. i не уменьшается, а j уменьшается не больше раз, чем рос.',
+  },
+  {
+    code: `table = [None] * m
+for k in keys:            # n ключей
+    insert(table, k)      # linear probing`,
+    cpp: `int insert(vector<int>& table, int key);   // linear probing
+
+void f(int m, const vector<int>& keys) {
+    vector<int> table(m, -1);              // -1 = EMPTY
+    for (int k : keys)                     // n ключей
+        insert(table, k);
+}`,
+    a: 'Average **O(n)** (каждая вставка O(1) в среднем при небольшом α), worst **O(n²)** (если все ключи дают один и тот же индекс: i-я вставка делает i проб). Space **O(m)**.',
+  },
 ];
 
 export function CheatSheetPage() {
@@ -177,10 +253,10 @@ export function CheatSheetPage() {
         </div>
         <h3 className="mt-8 mb-3 text-lg font-semibold text-white">Упражнения: определите сложность</h3>
         <div className="grid gap-4 md:grid-cols-2">
-          {EXERCISES.map((e, i) => (
+          {CHEAT_EXERCISES.map((e, i) => (
             <Card key={i}>
               <div className="text-sm font-medium text-slate-200">Упражнение {i + 1}</div>
-              <CodeBlock code={e.code} />
+              <CodeBlock code={e.code} cpp={e.cpp} />
               <Reveal>
                 <Markup text={e.a} />
               </Reveal>

@@ -50,6 +50,45 @@ export const bfsLesson: Lesson = {
     {
       kind: 'code',
       caption: 'BFS с массивами dist и parent',
+      cpp: `// возвращаем order, dist, parent через ссылки; вершины 0..n-1
+void bfs(const vector<vector<int>>& graph, int start,
+         vector<int>& order, vector<int>& dist, vector<int>& parent) {
+    int n = graph.size();
+    vector<bool> visited(n, false);
+    dist.assign(n, -1);                  // -1 = ещё не достигнута (∞)
+    parent.assign(n, -1);                // -1 = нет родителя (None)
+    queue<int> q;
+    visited[start] = true;
+    dist[start] = 0;
+    q.push(start);
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        order.push_back(u);
+        for (int v : graph[u]) {
+            if (!visited[v]) {
+                visited[v] = true;
+                dist[v] = dist[u] + 1;
+                parent[v] = u;
+                q.push(v);
+            }
+        }
+    }
+}`,
+      cppExplain: [
+        { line: 5, text: "visited — vector<bool> на n вершин: проверка и пометка за O(1)." },
+        { line: 6, text: "dist[v] — число рёбер в кратчайшем пути от start до v; -1 означает «пока не достигнута»." },
+        { line: 7, text: "parent[v] — из какой вершины мы впервые пришли в v; -1 играет роль None." },
+        { line: 8, text: "queue<int> — FIFO-очередь: push в конец, front/pop из начала, всё за O(1) (аналог deque + popleft в Python)." },
+        { line: 9, text: "Старт сразу считается visited: он уже в очереди. У старта dist = 0." },
+        { line: 12, text: "Работаем, пока очередь не пуста." },
+        { line: 13, text: "Берём вершину из НАЧАЛА очереди. В C++ pop() ничего не возвращает: сначала читаем front(), потом удаляем pop()." },
+        { line: 16, text: "Перебираем соседей u (по соглашению — по возрастанию)." },
+        { line: 17, text: "Только непосещённые: каждая вершина обрабатывается один раз." },
+        { line: 18, text: "Помечаем visited ДО добавления в очередь — так вершина не попадёт в очередь дважды." },
+        { line: 19, text: "v на один уровень дальше, чем u." },
+        { line: 21, text: "Добавляем в КОНЕЦ очереди." },
+      ],
       code: `from collections import deque
 
 def bfs(graph, start):
@@ -81,6 +120,12 @@ def bfs(graph, start):
         { line: 15, text: 'v на один уровень дальше, чем u.' },
         { line: 17, text: 'Добавляем в КОНЕЦ очереди.' },
       ],
+    },
+
+    {
+      kind: 'note',
+      title: 'В C++',
+      text: 'Очередь — `queue<int>`: `q.push(v)` в конец, `q.front()` читает начало, `q.pop()` удаляет его (pop ничего не возвращает). Все операции O(1). В Python `list.pop(0)` стоит O(n), поэтому там нужен `deque`; в C++ такой ловушки нет — `queue` по умолчанию построен на `deque`. Вместо `set` для visited удобнее `vector<bool> visited(n)`, а вместо `None` в dist/parent — значение `-1`.',
     },
 
     {
@@ -140,6 +185,33 @@ def bfs(graph, start):
     {
       kind: 'code',
       caption: 'Восстановление пути по parent',
+      cpp: `void bfs(const vector<vector<int>>& graph, int start,
+         vector<int>& order, vector<int>& dist, vector<int>& parent);  // см. выше
+
+vector<int> shortest_path(const vector<int>& parent, const vector<int>& dist, int target) {
+    if (dist[target] == -1)
+        return {};                       // target недостижима из start
+    vector<int> path;
+    while (target != -1) {
+        path.push_back(target);
+        target = parent[target];
+    }
+    reverse(path.begin(), path.end());   // разворачиваем: start -> ... -> target
+    return path;
+}
+
+int main() {
+    vector<vector<int>> graph = {{1, 2}, {0, 3}, {0, 3, 4}, {1, 2, 5}, {2, 5}, {3, 4}};  // A..F = 0..5
+    vector<int> order, dist, parent;
+    bfs(graph, 0, order, dist, parent);
+    for (int v : shortest_path(parent, dist, 5))
+        cout << v << ' ';                // 0 1 3 5  = A B D F
+}`,
+      cppExplain: [
+        { line: 5, text: "Если BFS не дошёл до target, dist[target] = -1 — пути не существует (dist = ∞)." },
+        { line: 8, text: "Поднимаемся от target к start по ссылкам parent. У start parent = -1 — цикл остановится." },
+        { line: 12, text: "Путь собран задом наперёд, поэтому разворачиваем его std::reverse." },
+      ],
       code: `def shortest_path(parent, target):
     if target not in parent:
         return None              # target недостижима из start
@@ -171,6 +243,35 @@ print(shortest_path(parent, 'F'))   # ['A', 'B', 'D', 'F']`,
     {
       kind: 'code',
       caption: 'BFS по всем вершинам: подсчёт компонент связности',
+      cpp: `int count_components(const vector<vector<int>>& graph) {
+    int n = graph.size();
+    vector<bool> visited(n, false);
+    int components = 0;
+    for (int s = 0; s < n; s++) {        // перебираем ВСЕ вершины
+        if (visited[s])
+            continue;
+        components++;                    // нашли новую компоненту
+        visited[s] = true;
+        queue<int> q;
+        q.push(s);
+        while (!q.empty()) {
+            int u = q.front();
+            q.pop();
+            for (int v : graph[u]) {
+                if (!visited[v]) {
+                    visited[v] = true;
+                    q.push(v);
+                }
+            }
+        }
+    }
+    return components;
+}`,
+      cppExplain: [
+        { line: 3, text: "Один visited на весь граф — вершины из уже обойдённых компонент повторно не трогаем." },
+        { line: 5, text: "Внешний цикл по 0..n−1 гарантирует, что мы не пропустим ни одну компоненту, включая изолированные вершины (у них просто пустой список)." },
+        { line: 8, text: "Каждый новый запуск BFS — новая компонента." },
+      ],
       code: `from collections import deque
 
 def count_components(graph):

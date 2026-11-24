@@ -41,6 +41,66 @@ const MULTI_CODE = `def rabin_karp_multi(text, patterns, d=256, q=1_000_003):
                 found.append((s, pat))
     return found`;
 
+const MULTI_CPP = `long long poly_hash(const string& s, long long d, long long q);                      // как в rabin_karp
+vector<pair<int, long long>> rolling_hashes(const string& text, int m, long long d, long long q);
+
+vector<pair<int, string>> rabin_karp_multi(const string& text, const vector<string>& patterns,
+                                           long long d = 256, long long q = 1000003) {
+    int m = patterns[0].size();                          // все образцы одной длины
+    unordered_map<long long, vector<string>> targets;    // hash → список образцов
+    for (const string& pat : patterns)
+        targets[poly_hash(pat, d, q)].push_back(pat);
+    vector<pair<int, string>> found;
+    for (auto [s, t] : rolling_hashes(text, m, d, q)) {
+        auto it = targets.find(t);                       // O(1) проверка по словарю
+        if (it == targets.end())
+            continue;
+        for (const string& pat : it->second)
+            if (text.compare(s, m, pat) == 0)
+                found.push_back({s, pat});
+    }
+    return found;
+}`;
+
+const RK_CPP = `vector<int> rabin_karp(const string& text, const string& pattern, long long d = 256, long long q = 101) {
+    int n = text.size(), m = pattern.size();
+    if (m == 0 || m > n)
+        return {};
+    long long h = 1;                     // d^(m-1) mod q — «вес» старшего символа
+    for (int i = 0; i < m - 1; i++)
+        h = (h * d) % q;
+    long long p = 0;                     // hash(pattern)
+    long long t = 0;                     // hash(текущего окна текста)
+    for (int i = 0; i < m; i++) {        // оба хеша считаем схемой Горнера
+        p = (d * p + (unsigned char)pattern[i]) % q;
+        t = (d * t + (unsigned char)text[i]) % q;
+    }
+    vector<int> result;
+    for (int s = 0; s <= n - m; s++) {   // s — начало окна
+        if (p == t) {                    // хеши совпали → проверяем символы
+            if (text.compare(s, m, pattern) == 0)
+                result.push_back(s);     // настоящее совпадение (match)
+            // иначе: spurious hit — хеши равны, строки разные
+        }
+        if (s < n - m) {                 // сдвигаем окно на 1 вправо (rolling hash)
+            t = (d * (t - (unsigned char)text[s] * h) + (unsigned char)text[s + m]) % q;
+            if (t < 0)
+                t += q;                  // в C++ % может вернуть отрицательное число!
+        }
+    }
+    return result;
+}`;
+
+const NAIVE_CPP = `vector<int> naive_search(const string& text, const string& pattern) {
+    int n = text.size(), m = pattern.size();
+    vector<int> result;
+    for (int s = 0; s <= n - m; s++) {           // каждое возможное начало окна
+        if (text.compare(s, m, pattern) == 0)    // сравнение до m символов
+            result.push_back(s);
+    }
+    return result;
+}`;
+
 export const rabinKarpLesson: Lesson = {
   id: 'm1-rabin-karp',
   title: 'Rabin-Karp: поиск подстроки через Rolling Hash',
@@ -64,6 +124,12 @@ export const rabinKarpLesson: Lesson = {
       explain: [
         { line: 4, text: 'Окон (возможных начал) ровно n − m + 1.' },
         { line: 5, text: 'Срез и сравнение строк — это до m сравнений символов. Итого worst case O(n·m).' },
+      ],
+      cpp: NAIVE_CPP,
+      cppExplain: [
+        { line: 2, text: 'n и m — int, а не size_t: иначе n − m при m > n «перевернулось» бы в огромное беззнаковое число.' },
+        { line: 4, text: 'Окон (возможных начал) ровно n − m + 1.' },
+        { line: 5, text: 'compare сравнивает до m символов. Итого worst case O(n·m).' },
       ],
     },
     {
@@ -145,6 +211,23 @@ export const rabinKarpLesson: Lesson = {
         { line: 17, text: 'Не пересчитываем хеш после последнего окна — иначе обратились бы к text[n] (IndexError).' },
         { line: 18, text: 'Rolling hash: убрать text[s], сдвинуть, добавить text[s+m]. O(1).' },
       ],
+      cpp: RK_CPP,
+      cppExplain: [
+        { line: 1, text: 'long long — чтобы промежуточные произведения d·t не переполнили int.' },
+        { line: 6, text: 'В C++ нет pow(d, m−1, q) по модулю — считаем h циклом за O(m), беря % q на каждом шаге.' },
+        { line: 10, text: 'Первый цикл: за O(m) считаем хеш образца p и хеш первого окна t₀ (схема Горнера). (unsigned char) — аналог ord(c).' },
+        { line: 15, text: 'Перебираем все n − m + 1 окон.' },
+        { line: 16, text: 'Быстрая проверка: сравнение двух чисел O(1). Большинство окон отсеиваются здесь.' },
+        { line: 17, text: 'Проверка символов обязательна — защищает от spurious hits. Стоит O(m).' },
+        { line: 21, text: 'Не пересчитываем хеш после последнего окна — иначе обратились бы к text[n] (за границей строки).' },
+        { line: 22, text: 'Rolling hash: убрать text[s], сдвинуть, добавить text[s+m]. O(1).' },
+        { line: 23, text: 'Главное отличие от Python: t − text[s]·h может быть отрицательным, а % в C++ сохраняет знак. Без поправки +q хеш окна не совпал бы с p.' },
+      ],
+    },
+    {
+      kind: 'note',
+      title: 'В C++: отрицательный остаток',
+      text: 'В Python `-5 % 13 == 8`, а в C++ `-5 % 13 == -5`. В rolling hash выражение `t - v(text[s]) * h` часто отрицательно, поэтому в C++ после `% q` нужно добавить q (`if (t < 0) t += q;` или `((x % q) + q) % q`). Иначе хеш окна «не совпадёт» с хешем образца даже при настоящем совпадении. Также используйте `long long`, чтобы `d * t` не переполнило int.',
     },
     { kind: 'viz', id: 'rk-visualizer', caption: 'Меняйте text, pattern, d и q. Маленький q → много spurious hits.' },
     { kind: 'h2', text: 'Почему q — простое и большое' },
@@ -201,6 +284,11 @@ export const rabinKarpLesson: Lesson = {
       explain: [
         { line: 5, text: 'Словарь «хеш → образцы» строится один раз.' },
         { line: 8, text: 'Вместо k сравнений хешей — один поиск в словаре за O(1) в среднем.' },
+      ],
+      cpp: MULTI_CPP,
+      cppExplain: [
+        { line: 9, text: 'unordered_map «хеш → образцы» строится один раз.' },
+        { line: 12, text: 'Вместо k сравнений хешей — один поиск в hash table за O(1) в среднем.' },
       ],
     },
     { kind: 'h2', text: 'Типичные ошибки' },

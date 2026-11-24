@@ -215,6 +215,11 @@ const raw: Q[] = [
     code: `if j == m:
     result.append(i - m)
     j = 0          # ошибка?`,
+    codeCpp: `// fragment из kmp_search
+if (j == m) {
+    result.push_back(i - m);
+    j = 0;         // ошибка?
+}`,
     options: ['[0, 1, 2]', '[0, 2]', '[0]', '[]'],
     correct: 1,
     explanation: 'После совпадения на 0 поиск начинается «с нуля» с позиции 2, вхождение 1 теряется. Правильно j = lps[m−1].',

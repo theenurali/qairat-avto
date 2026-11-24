@@ -40,6 +40,26 @@ export const lessonNaive: Lesson = {
         if j == m:                     # все m символов совпали
             result.append(s)
     return result`,
+      cpp: `vector<int> naive_search(const string& text, const string& pattern) {
+    int n = text.size(), m = pattern.size();
+    vector<int> result;
+    for (int s = 0; s <= n - m; s++) {       // каждый возможный сдвиг
+        int j = 0;
+        while (j < m && text[s + j] == pattern[j])
+            j++;
+        if (j == m)                          // все m символов совпали
+            result.push_back(s);
+    }
+    return result;
+}`,
+      cppExplain: [
+        { line: 2, text: 'Размеры приводим к int: если оставить size_t (беззнаковый), то n − m при m > n «переполнится» в огромное число и цикл сломается.' },
+        { line: 4, text: 'Перебираем все сдвиги s от 0 до n − m включительно (условие s <= n − m).' },
+        { line: 5, text: 'Для каждого сдвига начинаем сравнение с начала pattern: j = 0.' },
+        { line: 6, text: 'Сравниваем text[s+j] и pattern[j], пока символы совпадают. Проверка j < m стоит первой — иначе выйдем за границу.' },
+        { line: 8, text: 'Если дошли до j == m — все символы совпали, s — вхождение.' },
+        { line: 9, text: 'Ключевая проблема: на следующем s мы снова читаем text[s+1], text[s+2], ... — символы, которые уже видели.' },
+      ],
       explain: [
         { line: 4, text: 'Перебираем все сдвиги s от 0 до n − m включительно (дальше pattern «вылезает» за конец текста).' },
         { line: 5, text: 'Для каждого сдвига начинаем сравнение с начала pattern: j = 0.' },

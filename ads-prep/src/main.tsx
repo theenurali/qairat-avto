@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import './index.css';
 import { App } from './App';
+import { LangProvider } from './lib/lang';
 import { ProgressProvider } from './lib/progress';
 
 const root = document.getElementById('root');
@@ -12,7 +13,9 @@ createRoot(root).render(
   <StrictMode>
     <HashRouter>
       <ProgressProvider>
-        <App />
+        <LangProvider>
+          <App />
+        </LangProvider>
       </ProgressProvider>
     </HashRouter>
   </StrictMode>,

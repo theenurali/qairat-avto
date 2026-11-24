@@ -33,7 +33,7 @@ export function TracingStatement({ task }: { task: TracingTask }) {
           </div>
         )}
       </div>
-      {task.code && <CodeBlock code={task.code} caption="Алгоритм" />}
+      {task.code && <CodeBlock code={task.code} cpp={task.codeCpp} caption="Алгоритм" />}
     </>
   );
 }

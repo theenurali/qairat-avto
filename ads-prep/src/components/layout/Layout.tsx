@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { LangToggle } from '../../lib/lang';
 import { useProgress } from '../../lib/progress';
 import { useOverallStats } from '../../lib/stats';
 import { ProgressBar } from '../ui/primitives';
@@ -49,6 +50,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           </NavLink>
         ))}
       </nav>
+      <div className="mx-3 mt-3 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3">
+        <span className="text-xs text-slate-400">Язык кода</span>
+        <LangToggle />
+      </div>
       <div className="m-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
         <div className="mb-2 flex justify-between text-xs text-slate-400">
           <span>Общий прогресс</span>
@@ -82,6 +87,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <NavLink to="/" className="font-bold text-white">
           ADS Exam Prep
         </NavLink>
+        <LangToggle size="xs" className="ml-auto mr-3" />
         <button
           type="button"
           aria-label="Открыть меню"

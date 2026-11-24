@@ -25,11 +25,34 @@ const OPEN_CODE = `def insert(table, key):
             return idx
     raise Exception("table is full")`;
 
+const OPEN_CODE_CPP = `const int EMPTY = -1, DEL = -2;
+
+int insert(vector<int>& table, int key) {
+    int m = table.size();
+    int h = key % m;
+    for (int i = 0; i < m; i++) {
+        int idx = (h + i) % m;          // linear probing
+        // int idx = (h + i * i) % m;   // quadratic probing
+        if (table[idx] == EMPTY || table[idx] == DEL) {
+            table[idx] = key;
+            return idx;
+        }
+    }
+    throw runtime_error("table is full");
+}`;
+
 const CHAIN_CODE = `def insert(buckets, key):
     m = len(buckets)
     b = key % m
     if key not in buckets[b]:
         buckets[b].append(key)     # в КОНЕЦ цепочки`;
+
+const CHAIN_CODE_CPP = `void insert(vector<vector<int>>& buckets, int key) {
+    int m = buckets.size();
+    int b = key % m;
+    if (find(buckets[b].begin(), buckets[b].end(), key) == buckets[b].end())
+        buckets[b].push_back(key);     // в КОНЕЦ цепочки
+}`;
 
 export function tHashIndices(id: string, keys: number[], m: number): TracingTask {
   return {
@@ -59,6 +82,7 @@ export function tChaining(id: string, keys: number[], m: number, difficulty: 1 |
     prompt: `Вставьте ключи по порядку в hash table размера ${m} с Separate Chaining (h(k) = k mod ${m}, новый ключ добавляется в КОНЕЦ цепочки). Запишите содержимое каждого bucket'а от 0 до ${m - 1}.`,
     data: `m = ${m}\nkeys = [${keys.join(', ')}]`,
     code: CHAIN_CODE,
+    codeCpp: CHAIN_CODE_CPP,
     format: "Bucket'ы через |, ключи внутри — через пробел, пустой — _. Пример: 7 14 | _ | 9 | ...",
     expected: chains.map((c) => (c.length ? c.join(' ') : '_')),
     compare: 'groups',
@@ -93,6 +117,7 @@ export function tOpenTable(id: string, keys: number[], m: number, mode: ProbeMod
     prompt: `Вставьте ключи по порядку в пустую таблицу размера ${m} методом ${name}: h(k) = k mod ${m}, i-я проба = ${formula}, i = 0, 1, 2, … Запишите итоговое содержимое ячеек 0…${m - 1}.`,
     data: `m = ${m}\nkeys = [${keys.join(', ')}]`,
     code: OPEN_CODE,
+    codeCpp: OPEN_CODE_CPP,
     format: 'Значения ячеек через запятую, пустая ячейка — _. Пример: _, 11, 2, _, …',
     expected: table.map(slotToString),
     compare: 'list',
@@ -177,6 +202,7 @@ export function tStringHash(id: string, words: string[], m: number): TracingTask
     prompt: `Hash function для строк: h(s) = (сумма ord(c) по всем символам) mod ${m}. ord('a') = 97, ord('b') = 98, … Вычислите индекс каждого слова. Какие слова вызовут collision?`,
     data: `m = ${m}\nwords = [${words.map((w) => `"${w}"`).join(', ')}]`,
     code: `def h(s, m):\n    return sum(ord(c) for c in s) % m`,
+    codeCpp: `int h(const string& s, int m) {\n    int sum = 0;\n    for (char c : s)\n        sum += c;               // ord(c)\n    return sum % m;\n}`,
     format: 'Индексы через запятую в порядке слов',
     expected: words.map((w) => String(hashStringSum(w, m))),
     compare: 'list',
@@ -209,6 +235,28 @@ const RK_CODE = `def rabin_karp(text, pat, d, q):
             t = (d * (t - val(text[s]) * h) + val(text[s+m])) % q
     return res`;
 
+const RK_CODE_CPP = `int val(char c);   // значение символа: цифра, a=1, b=2, … или код символа
+
+vector<int> rabin_karp(const string& text, const string& pat, long long d, long long q) {
+    int n = text.size(), m = pat.size();
+    long long h = 1;
+    for (int i = 0; i < m - 1; i++)
+        h = h * d % q;                  // h = d^(m-1) mod q
+    long long p = 0, t = 0;
+    for (int i = 0; i < m; i++) {
+        p = (d * p + val(pat[i])) % q;
+        t = (d * t + val(text[i])) % q;
+    }
+    vector<int> res;
+    for (int s = 0; s <= n - m; s++) {
+        if (p == t && text.compare(s, m, pat) == 0)
+            res.push_back(s);
+        if (s < n - m)                  // + q: в C++ % может быть отрицательным
+            t = ((d * (t - val(text[s]) * h) + val(text[s + m])) % q + q) % q;
+    }
+    return res;
+}`;
+
 function rkParamText(p: RKParams): string {
   const v = p.values === 'digit' ? 'val(c) = цифра' : p.values === 'alpha' ? "val(c): a=1, b=2, …, z=26" : 'val(c) = ord(c)';
   return `d = ${p.base}, q = ${p.q}, ${v}`;
@@ -233,6 +281,7 @@ export function tRkPatternHash(id: string, pattern: string, p: RKParams): Tracin
     prompt: `Вычислите хеш образца по схеме Горнера (Horner's rule): p = (d·p + val(c)) mod q для каждого символа слева направо. Также вычислите h = d^(m−1) mod q. Ответ: p, h.`,
     data: `pattern = "${pattern}"\n${rkParamText(p)}`,
     code: RK_CODE,
+    codeCpp: RK_CODE_CPP,
     format: 'Два числа: p, h',
     expected: [String(r.patternHash), String(r.h)],
     compare: 'list',
@@ -252,6 +301,7 @@ export function tRkWindowHashes(id: string, text: string, pattern: string, p: RK
     prompt: `Запишите хеш t_s каждого окна длины ${pattern.length} в тексте (s = 0, 1, …, ${text.length - pattern.length}). Первый хеш считается по Горнеру, остальные — через rolling hash.`,
     data: `text = "${text}"\npattern = "${pattern}"\n${rkParamText(p)}`,
     code: RK_CODE,
+    codeCpp: RK_CODE_CPP,
     format: 'Хеши окон через запятую',
     expected: r.windows.map((w) => String(w.hash)),
     compare: 'list',
@@ -271,6 +321,7 @@ export function tRkSpurious(id: string, text: string, pattern: string, p: RKPara
     prompt: `Выполните Rabin-Karp. Запишите позиции s настоящих вхождений, затем символ |, затем позиции spurious hits (хеш совпал, а строки — нет). Если чего-то нет — пишите _.`,
     data: `text = "${text}"\npattern = "${pattern}"\n${rkParamText(p)}`,
     code: RK_CODE,
+    codeCpp: RK_CODE_CPP,
     format: 'Например: 2 9 | 5   (или _ | 5)',
     expected: [r.matches.join(' ') || '_', r.spurious.join(' ') || '_'],
     compare: 'groups',

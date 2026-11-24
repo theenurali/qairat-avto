@@ -35,6 +35,57 @@ const REHASH_CODE = `def rehash(self):
         for key in chain:
             self.insert(key)                    # индекс пересчитывается с НОВЫМ m`;
 
+const REHASH_CPP = `struct HashTableChaining {                       // только нужные поля и методы
+    int m, n;
+    vector<vector<int>> buckets;
+    void insert(int key);                        // как в классе выше
+
+    void rehash() {
+        vector<vector<int>> old = buckets;       // копия старых цепочек
+        m = 2 * m + 1;                           // новый размер (≈ вдвое больше)
+        buckets.assign(m, vector<int>());        // m новых пустых цепочек
+        n = 0;
+        for (const vector<int>& chain : old)
+            for (int key : chain)
+                insert(key);                     // индекс пересчитывается с НОВЫМ m
+    }
+};`;
+
+const CHAINING_CPP = `class HashTableChaining {
+public:
+    int m;
+    int n = 0;                                   // сколько ключей храним
+    vector<vector<int>> buckets;                 // m цепочек
+
+    HashTableChaining(int m = 7) : m(m), buckets(m) {}   // m пустых цепочек
+
+    int hashKey(int key) const {
+        return ((key % m) + m) % m;              // h(k) = k mod m, всегда 0..m-1
+    }
+
+    void insert(int key) {
+        vector<int>& chain = buckets[hashKey(key)];
+        if (find(chain.begin(), chain.end(), key) == chain.end()) {   // дубликаты не храним
+            chain.push_back(key);                // добавляем в КОНЕЦ цепочки
+            n++;
+        }
+    }
+
+    bool search(int key) const {
+        const vector<int>& chain = buckets[hashKey(key)];
+        return find(chain.begin(), chain.end(), key) != chain.end();   // ТОЛЬКО одна цепочка
+    }
+
+    void remove(int key) {                       // delete — ключевое слово C++
+        vector<int>& chain = buckets[hashKey(key)];
+        auto it = find(chain.begin(), chain.end(), key);
+        if (it != chain.end()) {
+            chain.erase(it);                     // обычное удаление из вектора
+            n--;
+        }
+    }
+};`;
+
 export const hashBasicsLesson: Lesson = {
   id: 'm1-hash-basics',
   title: 'Hash Tables: идея, Hash Function, Separate Chaining',
@@ -162,6 +213,16 @@ export const hashBasicsLesson: Lesson = {
         { line: 18, text: 'Главная идея: просматриваем одну цепочку длины ≈ α, а не все n ключей.' },
         { line: 23, text: 'В chaining удаление простое: ключ просто убирается из списка, остальные ключи не «теряются».' },
       ],
+      cpp: CHAINING_CPP,
+      cppExplain: [
+        { line: 7, text: 'buckets(m) создаёт m отдельных пустых векторов — каждый bucket независим.' },
+        { line: 10, text: 'В C++ оператор % для отрицательного ключа даёт отрицательный остаток (−3 % 7 = −3), поэтому прибавляем m и ещё раз берём % m. В Python так делать не нужно.' },
+        { line: 15, text: 'Проверка дубликата — проход по цепочке (std::find), поэтому insert стоит O(1 + α), а не строго O(1).' },
+        { line: 16, text: 'push_back добавляет в конец цепочки — порядок ключей в цепочке = порядок вставки.' },
+        { line: 23, text: 'Главная идея: просматриваем одну цепочку длины ≈ α, а не все n ключей.' },
+        { line: 26, text: 'Метод называется remove, потому что delete — зарезервированное слово C++.' },
+        { line: 30, text: 'erase удаляет ключ из вектора-цепочки, остальные ключи не «теряются».' },
+      ],
     },
     { kind: 'h3', text: 'Попробуйте сами' },
     {
@@ -186,6 +247,12 @@ export const hashBasicsLesson: Lesson = {
       explain: [
         { line: 3, text: 'Размер увеличиваем примерно вдвое (2m+1 часто даёт нечётное число; на практике берут ближайшее простое).' },
         { line: 8, text: 'Нельзя просто скопировать цепочки: h(k) = k mod m зависит от m, поэтому каждый ключ вставляется заново.' },
+      ],
+      cpp: REHASH_CPP,
+      cppExplain: [
+        { line: 8, text: 'Размер увеличиваем примерно вдвое (2m+1 часто даёт нечётное число; на практике берут ближайшее простое).' },
+        { line: 9, text: 'assign заменяет содержимое: m новых пустых цепочек.' },
+        { line: 13, text: 'Нельзя просто скопировать цепочки: h(k) = k mod m зависит от m, поэтому каждый ключ вставляется заново.' },
       ],
     },
     {

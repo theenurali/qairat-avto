@@ -35,6 +35,49 @@ const KMP_CODE = `def kmp_search(text, pat):
             i += 1
     return res`;
 
+const LPS_CODE_CPP = `vector<int> build_lps(const string& pat) {
+    int m = pat.size();
+    vector<int> lps(m, 0);
+    int length = 0;          // длина текущего prefix-suffix
+    int i = 1;
+    while (i < m) {
+        if (pat[i] == pat[length]) {
+            length++;
+            lps[i] = length;
+            i++;
+        } else if (length > 0) {
+            length = lps[length - 1];   // откат, i не двигаем
+        } else {
+            lps[i] = 0;
+            i++;
+        }
+    }
+    return lps;
+}`;
+
+const KMP_CODE_CPP = `vector<int> build_lps(const string& pat);
+
+vector<int> kmp_search(const string& text, const string& pat) {
+    vector<int> lps = build_lps(pat);
+    vector<int> res;
+    int i = 0, j = 0;
+    while (i < (int)text.size()) {
+        if (text[i] == pat[j]) {
+            i++;
+            j++;
+            if (j == (int)pat.size()) {
+                res.push_back(i - j);
+                j = lps[j - 1];
+            }
+        } else if (j > 0) {
+            j = lps[j - 1];          // i НЕ двигаем назад
+        } else {
+            i++;
+        }
+    }
+    return res;
+}`;
+
 export function tLps(id: string, pattern: string, difficulty: 1 | 2 | 3): TracingTask {
   const { lps, steps } = buildLpsTrace(pattern);
   return {
@@ -46,6 +89,7 @@ export function tLps(id: string, pattern: string, difficulty: 1 | 2 | 3): Tracin
     prompt: `Постройте LPS array (prefix function) для образца. LPS[i] — длина самого длинного proper prefix строки pattern[0..i], который одновременно является её suffix.`,
     data: `pattern = "${pattern}"\nindex:   ${[...pattern].map((_, i) => i).join(' ')}`,
     code: LPS_CODE,
+    codeCpp: LPS_CODE_CPP,
     format: 'Числа через запятую, по одному на символ',
     expected: lps.map(String),
     compare: 'list',
@@ -65,6 +109,7 @@ export function tKmpMatches(id: string, text: string, pattern: string, difficult
     prompt: `Выполните KMP search. Запишите начальные индексы ВСЕХ вхождений образца в текст (включая перекрывающиеся). Если вхождений нет — _.`,
     data: `text    = "${text}"\npattern = "${pattern}"\nLPS     = [${r.lps.join(', ')}]`,
     code: KMP_CODE,
+    codeCpp: KMP_CODE_CPP,
     format: 'Индексы через запятую или _',
     expected: r.matches.length ? r.matches.map(String) : ['_'],
     compare: 'list',
@@ -92,6 +137,7 @@ export function tKmpComparisons(id: string, text: string, pattern: string): Trac
     prompt: `Посчитайте число сравнений символов text[i] vs pattern[j] (1) в KMP search (не считая построения LPS) и (2) в наивном алгоритме (для каждого сдвига сравниваем слева направо до первого несовпадения).`,
     data: `text    = "${text}"\npattern = "${pattern}"\nLPS     = [${r.lps.join(', ')}]`,
     code: KMP_CODE,
+    codeCpp: KMP_CODE_CPP,
     format: 'Два числа: KMP, naive',
     expected: [String(r.comparisons), String(naive)],
     compare: 'list',
@@ -112,6 +158,7 @@ export function tKmpJumps(id: string, text: string, pattern: string): TracingTas
     prompt: `Выполните KMP search. Каждый раз, когда происходит несовпадение при j > 0, j заменяется на LPS[j−1]. Запишите по порядку НОВЫЕ значения j после каждого такого отката.`,
     data: `text    = "${text}"\npattern = "${pattern}"\nLPS     = [${r.lps.join(', ')}]`,
     code: KMP_CODE,
+    codeCpp: KMP_CODE_CPP,
     format: 'Числа через запятую (по одному на каждый откат); если откатов нет — _',
     expected: mism.length ? mism.map((s) => String(r.lps[s.j - 1])) : ['_'],
     compare: 'list',
@@ -131,6 +178,7 @@ export function tLpsFallbacks(id: string, pattern: string): TracingTask {
     prompt: `При построении LPS для образца выпишите по порядку значения length ПОСЛЕ каждого отката length = lps[length − 1] (ветка elif). Последним токеном запишите LPS[${pattern.length - 1}].`,
     data: `pattern = "${pattern}"`,
     code: LPS_CODE,
+    codeCpp: LPS_CODE_CPP,
     format: 'Числа через запятую',
     expected: [...fall.map((s) => String(lps[s.len - 1])), String(lps[lps.length - 1])],
     compare: 'list',
@@ -155,6 +203,7 @@ export function tKmpFinalJ(id: string, text: string, pattern: string): TracingTa
     prompt: `Выполните KMP search до конца текста. Запишите: позиции вхождений (через пробел, _ если нет), затем | и значение j после окончания цикла. (Это значение показывает, какой префикс образца совпал с концом текста.)`,
     data: `text    = "${text}"\npattern = "${pattern}"\nLPS     = [${buildLps(pattern).join(', ')}]`,
     code: KMP_CODE,
+    codeCpp: KMP_CODE_CPP,
     format: 'Например: 0 4 | 2',
     expected: [r.matches.join(' ') || '_', String(j)],
     compare: 'groups',

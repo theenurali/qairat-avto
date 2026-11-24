@@ -56,6 +56,73 @@ export const DFS_TOPO_CODE = `def topo_dfs(adj, vertices):
             dfs(v)
     return finish[::-1]            # обратный порядок завершения`;
 
+export const DFS_REC_CPP = `// вершины A,B,C,… = 0,1,2,…
+void dfs(const vector<vector<int>>& adj, int u, vector<bool>& visited, vector<int>& order) {
+    visited[u] = true;
+    order.push_back(u);
+    for (int v : adj[u])            // соседи по возрастанию
+        if (!visited[v])
+            dfs(adj, v, visited, order);
+}`;
+
+export const DFS_ITER_CPP = `vector<int> dfs_iter(const vector<vector<int>>& adj, int s) {
+    vector<bool> visited(adj.size(), false);
+    vector<int> order;
+    vector<int> st = {s};                  // vector как стек: вершина = back()
+    while (!st.empty()) {
+        int u = st.back(); st.pop_back();
+        if (visited[u])
+            continue;
+        visited[u] = true;
+        order.push_back(u);
+        for (int k = (int)adj[u].size() - 1; k >= 0; k--)   // reversed: меньший сосед сверху
+            if (!visited[adj[u][k]])
+                st.push_back(adj[u][k]);
+    }
+    return order;
+}`;
+
+export const KAHN_CPP = `optional<vector<int>> kahn(const vector<vector<int>>& adj, int n) {
+    vector<int> indeg(n, 0);
+    for (int u = 0; u < n; u++)
+        for (int v : adj[u])
+            indeg[v]++;
+    queue<int> q;
+    for (int v = 0; v < n; v++)        // по возрастанию
+        if (indeg[v] == 0)
+            q.push(v);
+    vector<int> order;
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+        order.push_back(u);
+        for (int v : adj[u]) {
+            indeg[v]--;
+            if (indeg[v] == 0)
+                q.push(v);
+        }
+    }
+    if ((int)order.size() < n)
+        return nullopt;                // есть цикл
+    return order;
+}`;
+
+export const DFS_TOPO_CPP = `vector<int> topo_dfs(const vector<vector<int>>& adj, int n) {
+    vector<bool> visited(n, false);
+    vector<int> finish;
+    function<void(int)> dfs = [&](int u) {
+        visited[u] = true;
+        for (int v : adj[u])
+            if (!visited[v])
+                dfs(v);
+        finish.push_back(u);           // u завершена
+    };
+    for (int v = 0; v < n; v++)        // по возрастанию
+        if (!visited[v])
+            dfs(v);
+    reverse(finish.begin(), finish.end());   // обратный порядок завершения
+    return finish;
+}`;
+
 function base(id: string, g: Graph, difficulty: 1 | 2 | 3, topic: 'dfs' | 'topo') {
   return { id, module: 'm4' as const, topic, difficulty, graph: graphForTask(g) };
 }
@@ -68,6 +135,7 @@ export function tDfsOrder(id: string, g: Graph, start: string, difficulty: 1 | 2
     prompt: `Выполните recursive DFS из ${start}, перебирая соседей в порядке Adjacency List. Запишите порядок посещения вершин (preorder).`,
     data: fmtAdj(g),
     code: DFS_REC_CODE,
+    codeCpp: DFS_REC_CPP,
     format: 'Вершины через запятую',
     expected: r.order,
     compare: 'list',
@@ -89,6 +157,7 @@ export function tDfsFinish(id: string, g: Graph, start: string): TracingTask {
     prompt: `Выполните recursive DFS из ${start}. Запишите порядок, в котором вызовы dfs(u) ЗАВЕРШАЮТСЯ (postorder / finish order).`,
     data: fmtAdj(g),
     code: DFS_REC_CODE,
+    codeCpp: DFS_REC_CPP,
     format: 'Вершины через запятую',
     expected: r.finish,
     compare: 'list',
@@ -105,6 +174,7 @@ export function tDfsCallStack(id: string, g: Graph, start: string, when: string)
     prompt: `Выполните recursive DFS из ${start}. Запишите содержимое call stack (от дна к вершине) в момент, когда только что вызвана dfs(${when}).`,
     data: fmtAdj(g),
     code: DFS_REC_CODE,
+    codeCpp: DFS_REC_CPP,
     format: `Вершины через запятую, первая — ${start}`,
     expected: st.stack,
     compare: 'list',
@@ -125,6 +195,7 @@ export function tDfsIter(id: string, g: Graph, start: string, k: number): Tracin
     prompt: `Выполните iterative DFS из ${start} (код ниже: pop, пропуск visited, push соседей в ОБРАТНОМ порядке). Запишите порядок посещения, затем | и содержимое стека (от дна к вершине) сразу после посещения ${k}-й вершины.`,
     data: fmtAdj(g),
     code: DFS_ITER_CODE,
+    codeCpp: DFS_ITER_CPP,
     format: 'Например: A B D | C E',
     expected: [r.order.join(' '), st.stack.join(' ') || '_'],
     compare: 'groups',
@@ -141,6 +212,21 @@ export function tComponents(id: string, g: Graph): TracingTask {
     prompt: `Граф может быть несвязным. Запустите DFS из каждой ещё не посещённой вершины (перебирая вершины по возрастанию). Запишите компоненты связности в порядке обнаружения: вершины компоненты — в порядке DFS, компоненты через |.`,
     data: fmtAdj(g),
     code: `for v in sorted(vertices):\n    if v not in visited:\n        comp = []\n        dfs(adj, v, visited, comp)\n        components.append(comp)`,
+    codeCpp: `void dfs(const vector<vector<int>>& adj, int u, vector<bool>& visited, vector<int>& order);
+
+vector<vector<int>> components_of(const vector<vector<int>>& adj) {
+    int n = adj.size();
+    vector<bool> visited(n, false);
+    vector<vector<int>> components;
+    for (int v = 0; v < n; v++) {        // вершины по возрастанию
+        if (!visited[v]) {
+            vector<int> comp;
+            dfs(adj, v, visited, comp);
+            components.push_back(comp);
+        }
+    }
+    return components;
+}`,
     format: 'Например: 0 1 3 | 4 5 | 6',
     expected: r.components.map((c) => c.join(' ')),
     compare: 'groups',
@@ -172,6 +258,7 @@ export function tKahnOrder(id: string, g: Graph, difficulty: 1 | 2 | 3): Tracing
     prompt: `Выполните Kahn's Algorithm (FIFO-очередь; начальная очередь — вершины с in-degree 0 по возрастанию; соседи обрабатываются по возрастанию). Запишите полученный порядок. Если граф содержит цикл — запишите выведенные вершины, а последним токеном CYCLE.`,
     data: fmtAdj(g),
     code: KAHN_CODE,
+    codeCpp: KAHN_CPP,
     format: 'Вершины через запятую (+ CYCLE, если есть цикл)',
     expected: r.hasCycle ? [...r.order, 'CYCLE'] : r.order,
     compare: 'list',
@@ -192,6 +279,7 @@ export function tKahnQueue(id: string, g: Graph, k: number): TracingTask {
     prompt: `Выполните Kahn's Algorithm. После того как ${k}-я вершина извлечена и in-degree её соседей уменьшены, запишите: содержимое очереди | текущие in-degree всех вершин в порядке ${g.vertices.join(', ')}.`,
     data: fmtAdj(g),
     code: KAHN_CODE,
+    codeCpp: KAHN_CPP,
     format: 'Например: C D | 0 0 0 1 2',
     expected: [s.queue.join(' ') || '_', g.vertices.map((v) => String(s.inDegree[v])).join(' ')],
     compare: 'groups',
@@ -208,6 +296,7 @@ export function tDfsTopo(id: string, g: Graph, difficulty: 1 | 2 | 3): TracingTa
     prompt: `Выполните DFS-версию топологической сортировки: запускаем dfs из непосещённых вершин по возрастанию, соседи по возрастанию. Запишите порядок завершения (finish order), затем | и итоговый топологический порядок.`,
     data: fmtAdj(g),
     code: DFS_TOPO_CODE,
+    codeCpp: DFS_TOPO_CPP,
     format: 'Например: F D B E C A | A C E B D F',
     expected: [r.finish.join(' '), r.order.join(' ')],
     compare: 'groups',
@@ -228,6 +317,7 @@ export function tCycleRemaining(id: string, g: Graph): TracingTask {
     prompt: `Выполните Kahn's Algorithm. Какие вершины НЕ попадут в результат (порядок не важен)? Если все попадут — _.`,
     data: fmtAdj(g),
     code: KAHN_CODE,
+    codeCpp: KAHN_CPP,
     format: 'Вершины через запятую',
     expected: left.length ? left : ['_'],
     compare: 'set',

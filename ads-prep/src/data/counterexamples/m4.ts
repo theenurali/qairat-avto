@@ -52,6 +52,12 @@ const cxNoVisited: CounterexampleTask = {
     for v in adj[u]:
         dfs(adj, v, order)`,
   bugLine: 3,
+  buggyCodeCpp: `void dfs(const vector<vector<int>>& adj, int u, vector<int>& order) {
+    order.push_back(u);
+    for (int v : adj[u])
+        dfs(adj, v, order);
+}`,
+  bugLineCpp: 3,
   hint: 'Что будет, если до вершины можно дойти двумя путями? А если есть цикл?',
   fields: [...DIRECTED, START],
   initial: { vertices: '', edges: 'A->B, A->C, B->D', start: 'A' },
@@ -69,6 +75,13 @@ const cxNoVisited: CounterexampleTask = {
     for v in adj[u]:
         if v not in visited:
             dfs(adj, v, visited, order)`,
+  fixedCodeCpp: `void dfs(const vector<vector<int>>& adj, int u, vector<bool>& visited, vector<int>& order) {
+    visited[u] = true;
+    order.push_back(u);
+    for (int v : adj[u])
+        if (!visited[v])
+            dfs(adj, v, visited, order);
+}`,
 };
 
 /* 2. Iterative DFS: visited при push */
@@ -111,6 +124,25 @@ const cxIterPush: CounterexampleTask = {
                 stack.append(v)
     return order`,
   bugLine: 10,
+  buggyCodeCpp: `vector<int> dfs_iter(const vector<vector<int>>& adj, int s) {
+    vector<bool> visited(adj.size(), false);
+    visited[s] = true;
+    vector<int> st = {s};
+    vector<int> order;
+    while (!st.empty()) {
+        int u = st.back(); st.pop_back();
+        order.push_back(u);
+        for (int k = (int)adj[u].size() - 1; k >= 0; k--) {
+            int v = adj[u][k];
+            if (!visited[v]) {
+                visited[v] = true;   // отмечаем при push (как в BFS)
+                st.push_back(v);
+            }
+        }
+    }
+    return order;
+}`,
+  bugLineCpp: 12,
   hint: 'Если вершина отмечена при push, её уже нельзя «перехватить» более глубоким путём. Нужен граф, где сосед start достижим и напрямую, и через другого соседа.',
   fields: [...UNDIRECTED, START],
   initial: { vertices: '', edges: 'A-B, A-C, B-D', start: 'A' },
@@ -131,6 +163,18 @@ const cxIterPush: CounterexampleTask = {
         for v in reversed(adj[u]):
             if v not in visited:
                 stack.append(v)`,
+  fixedCodeCpp: `    vector<bool> visited(adj.size(), false);   // старт НЕ помечаем заранее
+    ...
+    while (!st.empty()) {
+        int u = st.back(); st.pop_back();
+        if (visited[u])
+            continue;
+        visited[u] = true;
+        order.push_back(u);
+        for (int k = (int)adj[u].size() - 1; k >= 0; k--)
+            if (!visited[adj[u][k]])
+                st.push_back(adj[u][k]);
+    }`,
 };
 
 /* Kahn-варианты */
@@ -191,6 +235,29 @@ const cxKahnOutdeg: CounterexampleTask = {
                 q.append(v)
     return order if len(order) == len(vertices) else None`,
   bugLine: 6,
+  buggyCodeCpp: `optional<vector<int>> kahn(const vector<vector<int>>& adj, const vector<pair<int, int>>& edges, int n) {
+    vector<int> indeg(n, 0);
+    for (auto [u, v] : edges)
+        indeg[u]++;
+    queue<int> q;
+    for (int v = 0; v < n; v++)      // по возрастанию
+        if (indeg[v] == 0)
+            q.push(v);
+    vector<int> order;
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+        order.push_back(u);
+        for (int v : adj[u]) {
+            indeg[v]--;
+            if (indeg[v] == 0)
+                q.push(v);
+        }
+    }
+    if ((int)order.size() == n)
+        return order;
+    return nullopt;
+}`,
+  bugLineCpp: 4,
   hint: 'in-degree — это число ВХОДЯЩИХ рёбер. Ребро u→v увеличивает in-degree какой вершины?',
   fields: DIRECTED,
   initial: { vertices: 'A B C', edges: '' },
@@ -204,6 +271,8 @@ const cxKahnOutdeg: CounterexampleTask = {
     'A->B: багованный код считает indeg[A] = 1, indeg[B] = 0. Очередь начинается с B, у B нет исходящих рёбер, A так и не становится 0 → order = [B], длина < 2 → None (ложный «цикл»). Правильно: indeg[B] = 1, порядок [A, B]. На графе без рёбер обе версии совпадают — поэтому важно тестировать хотя бы одно ребро.',
   fixedCode: `    for u, v in edges:
         indeg[v] += 1`,
+  fixedCodeCpp: `    for (auto [u, v] : edges)
+        indeg[v]++;`,
 };
 
 const cxKahnNoZero: CounterexampleTask = {
@@ -226,6 +295,28 @@ const cxKahnNoZero: CounterexampleTask = {
             q.append(v)              # соседа сразу в очередь
     return order if len(order) == len(vertices) else None`,
   bugLine: 15,
+  buggyCodeCpp: `optional<vector<int>> kahn(const vector<vector<int>>& adj, const vector<pair<int, int>>& edges, int n) {
+    vector<int> indeg(n, 0);
+    for (auto [u, v] : edges)
+        indeg[v]++;
+    queue<int> q;
+    for (int v = 0; v < n; v++)      // по возрастанию
+        if (indeg[v] == 0)
+            q.push(v);
+    vector<int> order;
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+        order.push_back(u);
+        for (int v : adj[u]) {
+            indeg[v]--;
+            q.push(v);               // соседа сразу в очередь
+        }
+    }
+    if ((int)order.size() == n)
+        return order;
+    return nullopt;
+}`,
+  bugLineCpp: 15,
   hint: 'Вершина может иметь несколько входящих рёбер. Можно ли выводить её, пока не обработаны ВСЕ её предшественники?',
   fields: DIRECTED,
   initial: { vertices: '', edges: 'A->B, B->C' },
@@ -240,6 +331,9 @@ const cxKahnNoZero: CounterexampleTask = {
   fixedCode: `            indeg[v] -= 1
             if indeg[v] == 0:
                 q.append(v)`,
+  fixedCodeCpp: `            indeg[v]--;
+            if (indeg[v] == 0)
+                q.push(v);`,
 };
 
 const cxKahnNoCycle: CounterexampleTask = {
@@ -263,6 +357,27 @@ const cxKahnNoCycle: CounterexampleTask = {
                 q.append(v)
     return order`,
   bugLine: 17,
+  buggyCodeCpp: `optional<vector<int>> kahn(const vector<vector<int>>& adj, const vector<pair<int, int>>& edges, int n) {
+    vector<int> indeg(n, 0);
+    for (auto [u, v] : edges)
+        indeg[v]++;
+    queue<int> q;
+    for (int v = 0; v < n; v++)      // по возрастанию
+        if (indeg[v] == 0)
+            q.push(v);
+    vector<int> order;
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+        order.push_back(u);
+        for (int v : adj[u]) {
+            indeg[v]--;
+            if (indeg[v] == 0)
+                q.push(v);
+        }
+    }
+    return order;
+}`,
+  bugLineCpp: 19,
   hint: 'Что происходит с вершинами на цикле? Их in-degree когда-нибудь станет 0?',
   fields: DIRECTED,
   initial: { vertices: '', edges: 'A->B, A->C, B->D, C->D' },
@@ -277,6 +392,9 @@ const cxKahnNoCycle: CounterexampleTask = {
   fixedCode: `    if len(order) < len(vertices):
         return None                 # есть направленный цикл
     return order`,
+  fixedCodeCpp: `    if ((int)order.size() < n)
+        return nullopt;              // есть направленный цикл
+    return order;`,
 };
 
 /* DFS topo: preorder вместо reverse postorder */
@@ -313,6 +431,22 @@ const cxTopoPre: CounterexampleTask = {
             dfs(v)
     return res`,
   bugLine: 5,
+  buggyCodeCpp: `vector<int> topo(const vector<vector<int>>& adj, int n) {
+    vector<bool> visited(n, false);
+    vector<int> res;
+    function<void(int)> dfs = [&](int u) {
+        visited[u] = true;
+        res.push_back(u);            // записываем при входе
+        for (int v : adj[u])
+            if (!visited[v])
+                dfs(v);
+    };
+    for (int v = 0; v < n; v++)
+        if (!visited[v])
+            dfs(v);
+    return res;
+}`,
+  bugLineCpp: 6,
   hint: 'Preorder корректен, когда DFS из первой вершины проходит всё по цепочке. Что если у вершины два предшественника, и второй начинается позже?',
   fields: DIRECTED,
   initial: { vertices: '', edges: 'A->B, B->C' },
@@ -333,6 +467,16 @@ const cxTopoPre: CounterexampleTask = {
         res.append(u)                # при ВЫХОДЕ
     ...
     return res[::-1]`,
+  fixedCodeCpp: `    function<void(int)> dfs = [&](int u) {
+        visited[u] = true;
+        for (int v : adj[u])
+            if (!visited[v])
+                dfs(v);
+        res.push_back(u);            // при ВЫХОДЕ
+    };
+    ...
+    reverse(res.begin(), res.end());
+    return res;`,
 };
 
 /* Обнаружение цикла в орграфе только по visited */
@@ -371,6 +515,24 @@ const cxCycleVisited: CounterexampleTask = {
         return False
     return any(dfs(v) for v in sorted(vertices) if v not in visited)`,
   bugLine: 6,
+  buggyCodeCpp: `bool has_cycle(const vector<vector<int>>& adj, int n) {
+    vector<bool> visited(n, false);
+    function<bool(int)> dfs = [&](int u) {
+        visited[u] = true;
+        for (int v : adj[u]) {
+            if (visited[v])
+                return true;         // «снова пришли в вершину — цикл»
+            if (dfs(v))
+                return true;
+        }
+        return false;
+    };
+    for (int v = 0; v < n; v++)
+        if (!visited[v] && dfs(v))
+            return true;
+    return false;
+}`,
+  bugLineCpp: 6,
   hint: 'Попасть в уже посещённую вершину можно и без цикла — например, если она была полностью обработана в другой ветке.',
   fields: DIRECTED,
   initial: { vertices: '', edges: 'A->B, B->C, C->A' },
@@ -392,6 +554,19 @@ const cxCycleVisited: CounterexampleTask = {
                 return True
         color[u] = BLACK
         return False`,
+  fixedCodeCpp: `    enum { WHITE, GRAY, BLACK };
+    vector<int> color(n, WHITE);
+    function<bool(int)> dfs = [&](int u) {
+        color[u] = GRAY;
+        for (int v : adj[u]) {
+            if (color[v] == GRAY)
+                return true;         // back edge → цикл
+            if (color[v] == WHITE && dfs(v))
+                return true;
+        }
+        color[u] = BLACK;
+        return false;
+    };`,
 };
 
 /* Цикл в неориентированном графе: только первая компонента */
@@ -433,6 +608,24 @@ const cxCycleDisconnected: CounterexampleTask = {
     start = sorted(vertices)[0]
     return dfs(start, None)`,
   bugLine: 14,
+  buggyCodeCpp: `bool has_cycle(const vector<vector<int>>& adj, int n) {
+    vector<bool> visited(n, false);
+    function<bool(int, int)> dfs = [&](int u, int parent) {
+        visited[u] = true;
+        for (int v : adj[u]) {
+            if (v == parent)
+                continue;
+            if (visited[v])
+                return true;
+            if (dfs(v, u))
+                return true;
+        }
+        return false;
+    };
+    int start = 0;                   // наименьшая вершина
+    return dfs(start, -1);
+}`,
+  bugLineCpp: 16,
   hint: 'DFS из одной вершины видит только её компоненту связности.',
   fields: UNDIRECTED,
   initial: { vertices: '', edges: 'A-B, B-C, C-A, D-E' },
@@ -454,6 +647,10 @@ const cxCycleDisconnected: CounterexampleTask = {
         if s not in visited and dfs(s, None):
             return True
     return False`,
+  fixedCodeCpp: `    for (int s = 0; s < n; s++)
+        if (!visited[s] && dfs(s, -1))
+            return true;
+    return false;`,
 };
 
 export const CX_M4: CounterexampleTask[] = [cxNoVisited, cxKahnOutdeg, cxKahnNoCycle, cxCycleDisconnected, cxTopoPre, cxKahnNoZero, cxCycleVisited, cxIterPush];

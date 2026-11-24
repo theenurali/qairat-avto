@@ -100,7 +100,13 @@ export function CxTaskView({ task, onRun, examMode, values, onChange }: Props) {
       <Callout kind="note" title="Что функция должна делать">
         <Markup text={task.goal} />
       </Callout>
-      <CodeBlock code={task.buggyCode} caption="Код с ошибкой" danger={reveal && !examMode ? [task.bugLine] : []} />
+      <CodeBlock
+        code={task.buggyCode}
+        cpp={task.buggyCodeCpp}
+        caption="Код с ошибкой"
+        danger={reveal && !examMode ? [task.bugLine] : []}
+        dangerCpp={reveal && !examMode ? [task.bugLineCpp] : []}
+      />
       <div className="mt-4">
         <div className="mb-2 text-sm font-medium text-slate-200">Ваши входные данные (контрпример)</div>
         <CxFields task={task} values={v} onChange={setV} />
@@ -139,7 +145,7 @@ export function CxTaskView({ task, onRun, examMode, values, onChange }: Props) {
                 </div>
                 <Markup text={task.explanation} />
               </Callout>
-              <CodeBlock code={task.fixedCode} caption={`Исправление (ошибка в строке ${task.bugLine})`} />
+              <CodeBlock code={task.fixedCode} cpp={task.fixedCodeCpp} caption={`Исправление (ошибка: Python — строка ${task.bugLine}, C++ — строка ${task.bugLineCpp})`} />
             </div>
           )}
         </>

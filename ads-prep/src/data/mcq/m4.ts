@@ -220,6 +220,17 @@ export const mcqM4: MCQ[] = [
         if v not in visited:
             visit(v)
     visited.add(u)`,
+    codeCpp: `vector<vector<int>> graph;      // A = 0, B = 1: graph = {{1}, {0}}
+vector<bool> visited;           // все false
+vector<int> order;
+
+void visit(int u) {
+    order.push_back(u);
+    for (int v : graph[u])
+        if (!visited[v])
+            visit(v);
+    visited[u] = true;
+}`,
     options: [
       'order = [A, B]',
       'RecursionError: A и B бесконечно вызывают друг друга',
@@ -420,6 +431,11 @@ export const mcqM4: MCQ[] = [
     code: `for u in graph:
     for v in graph[u]:
         indeg[u] += 1`,
+    codeCpp: `void count_indeg(const vector<vector<int>>& graph, vector<int>& indeg) {
+    for (int u = 0; u < (int)graph.size(); u++)
+        for (int v : graph[u])
+            indeg[u]++;
+}`,
     options: [
       'Ни к чему, результат тот же',
       'Посчитается out-degree: в очередь попадут вершины без исходящих рёбер, и алгоритм выдаст неверный порядок или ложно сообщит о цикле',

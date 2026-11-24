@@ -77,6 +77,36 @@ export const lessonLps: Lesson = {
             lps[i] = 0
             i += 1
     return lps`,
+      cpp: `vector<int> build_lps(const string& pattern) {
+    int m = pattern.size();
+    vector<int> lps(m, 0);       // lps[0] = 0 всегда
+    int length = 0;              // длина текущего border
+    int i = 1;
+    while (i < m) {
+        if (pattern[i] == pattern[length]) {
+            length++;
+            lps[i] = length;
+            i++;
+        } else if (length > 0) {
+            length = lps[length - 1];   // откат: пробуем более короткий border
+        } else {
+            lps[i] = 0;
+            i++;
+        }
+    }
+    return lps;
+}`,
+      cppExplain: [
+        { line: 3, text: 'vector<int>(m, 0) — массив из m нулей: lps[0] = 0 по определению.' },
+        { line: 4, text: 'length — длина border, который мы сейчас пытаемся продлить. Изначально 0.' },
+        { line: 5, text: 'Начинаем с i = 1 (не с 0!), иначе сравним pattern[0] сам с собой и получим lps[0] = 1 — ошибка.' },
+        { line: 7, text: 'Символ после border-префикса совпал с новым символом → border удлиняется на 1.' },
+        { line: 9, text: 'Записываем ответ и переходим к следующему i.' },
+        { line: 11, text: 'Не совпало, но border непустой → переходим к следующему по длине border: lps[length − 1].' },
+        { line: 12, text: 'ВАЖНО: i не увеличиваем — на следующей итерации while тот же pattern[i] сравним с новым кандидатом.' },
+        { line: 14, text: 'length = 0 и символы не совпали → border нет, lps[i] = 0.' },
+        { line: 18, text: 'Возвращаем vector по значению — компилятор не копирует его лишний раз (move / RVO).' },
+      ],
       explain: [
         { line: 3, text: 'Массив из нулей: lps[0] = 0 по определению (proper prefix одного символа — пустой).' },
         { line: 4, text: 'length — длина border, который мы сейчас пытаемся продлить. Изначально 0.' },

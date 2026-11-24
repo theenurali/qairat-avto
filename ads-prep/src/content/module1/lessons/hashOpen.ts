@@ -33,6 +33,46 @@ def delete(table, key, mode='linear'):
     if idx != -1:
         table[idx] = DELETED        # tombstone, а НЕ EMPTY!`;
 
+const OPEN_CPP = `const int EMPTY = -1;                    // пустая ячейка (ключи ≥ 0)
+const int DEL = -2;                      // tombstone
+
+int probe(int key, int i, int m, bool linear = true) {
+    int h = key % m;
+    if (linear)
+        return (h + i) % m;              // h, h+1, h+2, h+3, ...
+    return (h + i * i) % m;              // h, h+1, h+4, h+9, ...
+}
+
+int insert(vector<int>& table, int key, bool linear = true) {
+    int m = table.size();
+    for (int i = 0; i < m; i++) {
+        int idx = probe(key, i, m, linear);
+        if (table[idx] == EMPTY || table[idx] == DEL) {
+            table[idx] = key;
+            return idx;
+        }
+    }
+    throw runtime_error("no free slot found");
+}
+
+int search(const vector<int>& table, int key, bool linear = true) {
+    int m = table.size();
+    for (int i = 0; i < m; i++) {
+        int idx = probe(key, i, m, linear);
+        if (table[idx] == EMPTY)
+            return -1;                   // дошли до пустой ячейки — ключа точно нет
+        if (table[idx] == key)
+            return idx;                  // нашли; DEL просто пропускаем
+    }
+    return -1;
+}
+
+void remove(vector<int>& table, int key, bool linear = true) {
+    int idx = search(table, key, linear);
+    if (idx != -1)
+        table[idx] = DEL;                // tombstone, а НЕ EMPTY!
+}`;
+
 export const hashOpenLesson: Lesson = {
   id: 'm1-hash-open',
   title: 'Open Addressing: Linear & Quadratic Probing',
@@ -168,6 +208,17 @@ export const hashOpenLesson: Lesson = {
         { line: 22, text: 'Ключевая строка поиска: EMPTY означает «дальше искать бессмысленно».' },
         { line: 24, text: 'DEL не равен ключу и не EMPTY → цикл просто идёт к следующей пробе.' },
         { line: 31, text: 'Удаление ставит tombstone, чтобы не разорвать probe sequence других ключей.' },
+      ],
+      cpp: OPEN_CPP,
+      cppExplain: [
+        { line: 1, text: 'В Python ячейка может хранить None или строку "DEL". В C++ vector<int> хранит только числа, поэтому EMPTY и DEL — специальные значения (−1 и −2); ключи считаем неотрицательными.' },
+        { line: 7, text: 'Linear probing: каждая следующая проба на 1 дальше, % m даёт wrap-around.' },
+        { line: 8, text: 'Quadratic probing: смещение i² (0, 1, 4, 9, …) от исходной ячейки h.' },
+        { line: 15, text: 'Вставка занимает первую ячейку, которая EMPTY или DEL.' },
+        { line: 20, text: 'Все m проб заняты (или quadratic probing не достал свободные ячейки) — бросаем исключение.' },
+        { line: 27, text: 'Ключевая строка поиска: EMPTY означает «дальше искать бессмысленно».' },
+        { line: 29, text: 'DEL не равен ключу и не EMPTY → цикл просто идёт к следующей пробе.' },
+        { line: 38, text: 'Удаление ставит tombstone, чтобы не разорвать probe sequence других ключей. Функция названа remove, т.к. delete — ключевое слово C++.' },
       ],
     },
     {

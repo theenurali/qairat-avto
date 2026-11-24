@@ -19,6 +19,44 @@ def bfs(adj, s):
                 q.append(v)
     return order, dist`;
 
+export const BFS_CODE_CPP = `// вершины пронумерованы 0..n-1 (A,B,C,… = 0,1,2,…)
+pair<vector<int>, vector<int>> bfs(const vector<vector<int>>& adj, int s) {
+    int n = adj.size();
+    vector<bool> visited(n, false);
+    vector<int> dist(n, -1);
+    queue<int> q;
+    vector<int> order;
+    visited[s] = true;
+    dist[s] = 0;
+    q.push(s);
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        order.push_back(u);
+        for (int v : adj[u]) {          // соседи по возрастанию
+            if (!visited[v]) {
+                visited[v] = true;      // отмечаем при добавлении в очередь
+                dist[v] = dist[u] + 1;
+                q.push(v);
+            }
+        }
+    }
+    return {order, dist};
+}`;
+
+const PATH_CODE_CPP = `
+
+// parent[v] = u в момент добавления v в очередь (-1 у start)
+vector<int> path(const vector<int>& parent, int t) {
+    vector<int> res;
+    while (t != -1) {
+        res.push_back(t);
+        t = parent[t];
+    }
+    reverse(res.begin(), res.end());
+    return res;
+}`;
+
 function base(id: string, g: Graph, difficulty: 1 | 2 | 3, topic: 'graphrep' | 'bfs') {
   return { id, module: 'm3' as const, topic, difficulty, graph: graphForTask(g) };
 }
@@ -112,6 +150,7 @@ export function tBfsOrder(id: string, g: Graph, start: string, difficulty: 1 | 2
     prompt: `Выполните BFS из вершины ${start}. Соседи перебираются в порядке Adjacency List (по возрастанию). Запишите порядок, в котором вершины извлекаются из очереди.`,
     data: fmtAdj(g),
     code: BFS_CODE,
+    codeCpp: BFS_CODE_CPP,
     format: 'Вершины через запятую',
     expected: r.order,
     compare: 'list',
@@ -130,6 +169,7 @@ export function tBfsQueue(id: string, g: Graph, start: string, k: number): Traci
     prompt: `Выполните BFS из ${start}. Запишите содержимое очереди (от начала к концу) сразу ПОСЛЕ того, как ${k}-я по счёту вершина извлечена и все её непосещённые соседи добавлены.`,
     data: fmtAdj(g),
     code: BFS_CODE,
+    codeCpp: BFS_CODE_CPP,
     format: 'Вершины через запятую (front → back), пустая очередь — _',
     expected: s.queue.length ? s.queue : ['_'],
     compare: 'list',
@@ -145,6 +185,7 @@ export function tBfsDist(id: string, g: Graph, start: string): TracingTask {
     prompt: `С помощью BFS найдите кратчайшее расстояние (число рёбер) от ${start} до каждой вершины в порядке ${g.vertices.join(', ')}. Для недостижимых пишите ∞.`,
     data: fmtAdj(g),
     code: BFS_CODE,
+    codeCpp: BFS_CODE_CPP,
     format: 'Числа через запятую (∞ или inf для недостижимых)',
     expected: g.vertices.map((v) => (r.dist.has(v) ? String(r.dist.get(v)) : '∞')),
     compare: 'list',
@@ -162,6 +203,7 @@ export function tBfsPath(id: string, g: Graph, start: string, target: string): T
     prompt: `Выполните BFS из ${start} (соседи по возрастанию), запоминая parent каждой вершины. Восстановите путь от ${start} до ${target} по parent (это кратчайший путь, который находит BFS).`,
     data: fmtAdj(g),
     code: `${BFS_CODE}\n\n# parent[v] = u в момент добавления v в очередь\ndef path(parent, t):\n    res = []\n    while t is not None:\n        res.append(t)\n        t = parent[t]\n    return res[::-1]`,
+    codeCpp: BFS_CODE_CPP + PATH_CODE_CPP,
     format: 'Вершины пути через запятую',
     expected: path,
     compare: 'list',
@@ -180,6 +222,7 @@ export function tBfsParent(id: string, g: Graph, start: string): TracingTask {
     prompt: `Выполните BFS из ${start}. Для каждой вершины в порядке ${g.vertices.join(', ')} запишите её parent в BFS tree (для ${start} и недостижимых — _).`,
     data: fmtAdj(g),
     code: BFS_CODE,
+    codeCpp: BFS_CODE_CPP,
     format: 'Через запятую, _ для отсутствующего parent',
     expected: g.vertices.map((v) => r.parent.get(v) ?? '_'),
     compare: 'list',

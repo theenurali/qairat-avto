@@ -59,6 +59,42 @@ export const lessonSearch: Lesson = {
         else:
             i += 1                     # j == 0: просто идём дальше
     return result`,
+      cpp: `vector<int> build_lps(const string& pattern);   // см. урок про LPS
+
+vector<int> kmp_search(const string& text, const string& pattern) {
+    int n = text.size(), m = pattern.size();
+    if (m == 0)
+        return {};
+    vector<int> lps = build_lps(pattern);
+    vector<int> result;
+    int i = 0, j = 0;            // i — по text, j — по pattern
+    while (i < n) {
+        if (text[i] == pattern[j]) {
+            i++;
+            j++;
+            if (j == m) {                    // нашли вхождение
+                result.push_back(i - m);
+                j = lps[j - 1];              // продолжаем (перекрытия!)
+            }
+        } else if (j > 0) {
+            j = lps[j - 1];                  // сдвигаем pattern, i стоит
+        } else {
+            i++;                             // j == 0: просто идём дальше
+        }
+    }
+    return result;
+}`,
+      cppExplain: [
+        { line: 1, text: 'Прототип функции build_lps — её код в уроке про LPS array.' },
+        { line: 5, text: 'Пустой pattern — граничный случай, обрабатываем отдельно (иначе pattern[0] — выход за границу, в C++ это undefined behavior).' },
+        { line: 7, text: 'Preprocessing: LPS по pattern за O(m).' },
+        { line: 10, text: 'Цикл идёт, пока i не дошёл до конца текста. i никогда не уменьшается.' },
+        { line: 11, text: 'Символы совпали — двигаем оба указателя.' },
+        { line: 15, text: 'Совпали все m символов: вхождение начинается в i − m (i уже указывает за последний совпавший символ).' },
+        { line: 16, text: 'После полного совпадения j = lps[m − 1], а НЕ 0 — иначе пропустим перекрывающиеся вхождения.' },
+        { line: 19, text: 'Несовпадение при j > 0: pattern «перепрыгивает», i остаётся — text[i] сравним с pattern[lps[j−1]].' },
+        { line: 21, text: 'Несовпадение при j = 0: нет совпавшей части — переходим к следующему символу текста.' },
+      ],
       explain: [
         { line: 3, text: 'Пустой pattern — граничный случай, обрабатываем отдельно (иначе pattern[0] вызовет ошибку).' },
         { line: 5, text: 'Preprocessing: LPS по pattern за O(m).' },

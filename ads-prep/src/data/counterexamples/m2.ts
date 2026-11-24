@@ -81,6 +81,18 @@ const LPS_HEADER = `def build_lps(pat):
             lps[i] = length
             i += 1`;
 
+const LPS_HEADER_CPP = `vector<int> build_lps(const string& pat) {
+    int m = pat.size();
+    vector<int> lps(m, 0);
+    int length = 0;
+    int i = 1;
+    while (i < m) {
+        if (pat[i] == pat[length]) {
+            length++;
+            lps[i] = length;
+            i++;
+        }`;
+
 const cxLpsZero: CounterexampleTask = {
   id: 'cx-m2-1',
   module: 'm2',
@@ -96,6 +108,17 @@ const cxLpsZero: CounterexampleTask = {
             i += 1
     return lps`,
   bugLine: 12,
+  buggyCodeCpp: `${LPS_HEADER_CPP}
+        else if (length > 0) {
+            length = 0;              // «начинаем заново»
+        } else {
+            lps[i] = 0;
+            i++;
+        }
+    }
+    return lps;
+}`,
+  bugLineCpp: 13,
   hint: 'После несовпадения более короткий prefix-suffix может всё ещё подходить. Попробуйте строки из повторяющихся символов с одним «чужим».',
   fields: [{ name: 'pattern', label: 'pattern', placeholder: 'ABCABD' }],
   initial: { pattern: 'ABCABD' },
@@ -109,6 +132,9 @@ const cxLpsZero: CounterexampleTask = {
     'pattern = "AABAAA". До i = 5 всё верно: LPS = [0,1,0,1,2,?], length = 2. Сравниваем pat[5]=\'A\' и pat[2]=\'B\' — не равны. Правильно: length = LPS[1] = 1 и снова сравнить pat[5] с pat[1] = \'A\' → равны → LPS[5] = 2 ("AA" — и префикс, и суффикс "AABAAA"). Багованный код ставит length = 0 и получает LPS[5] = 1. Откат в 0 теряет более короткие совпадения, которые сохраняет переход length = lps[length − 1].',
   fixedCode: `        elif length > 0:
             length = lps[length - 1]   # пробуем более короткий prefix-suffix`,
+  fixedCodeCpp: `        else if (length > 0) {
+            length = lps[length - 1];  // пробуем более короткий prefix-suffix
+        }`,
 };
 
 const cxLpsNoRecheck: CounterexampleTask = {
@@ -128,6 +154,19 @@ const cxLpsNoRecheck: CounterexampleTask = {
             i += 1
     return lps`,
   bugLine: 13,
+  buggyCodeCpp: `${LPS_HEADER_CPP}
+        else if (length > 0) {
+            length = lps[length - 1];
+            lps[i] = length;         // сразу записываем
+            i++;                     // и идём дальше
+        } else {
+            lps[i] = 0;
+            i++;
+        }
+    }
+    return lps;
+}`,
+  bugLineCpp: 14,
   hint: 'После отката length нужно СНОВА сравнить pat[i] и pat[length]. Когда это сравнение дало бы «равно»? А когда новый length вообще не подходит?',
   fields: [{ name: 'pattern', label: 'pattern', placeholder: 'ABAB' }],
   initial: { pattern: 'ABAB' },
@@ -141,12 +180,40 @@ const cxLpsNoRecheck: CounterexampleTask = {
     'pattern = "AABAAA". При i = 5: length = 2, pat[5]=\'A\' ≠ pat[2]=\'B\' → length = LPS[1] = 1. Багованный код сразу записывает LPS[5] = 1. Правильный код сравнивает ещё раз: pat[5]=\'A\' == pat[1]=\'A\' → LPS[5] = 2. Правильно [0,1,0,1,2,2], баг [0,1,0,1,2,1]. Обратите внимание: на "ABAC" обе версии дают [0,0,1,0] — после отката length = 0 и повторное сравнение тоже даёт «не равно». Хороший контрпример требует, чтобы после отката повторное сравнение дало «равно» (или потребовался второй откат).',
   fixedCode: `        elif length > 0:
             length = lps[length - 1]   # i НЕ увеличиваем — сравним ещё раз`,
+  fixedCodeCpp: `        else if (length > 0) {
+            length = lps[length - 1];  // i НЕ увеличиваем — сравним ещё раз
+        }`,
 };
 
 const KMP_HEADER = `def kmp_search(text, pat):
     lps = build_lps(pat)          # корректная
     res = []
     i = j = 0`;
+
+const KMP_HEADER_CPP = `vector<int> build_lps(const string& pat);   // корректная
+vector<int> kmp_search(const string& text, const string& pat) {
+    vector<int> lps = build_lps(pat);
+    vector<int> res;
+    int i = 0, j = 0;`;
+
+/** Хвост KMP на C++: middle — тело ветки совпадения после res.push_back, mismatch — тело ветки j > 0. */
+const kmpTailCpp = (loop: string, afterMatch: string, mismatch: string) => `${KMP_HEADER_CPP}
+    while (${loop}) {
+        if (text[i] == pat[j]) {
+            i++;
+            j++;
+            if (j == (int)pat.size()) {
+                res.push_back(i - j);
+                ${afterMatch}
+            }
+        } else if (j > 0) {
+${mismatch}
+        } else {
+            i++;
+        }
+    }
+    return res;
+}`;
 
 const cxKmpResetZero: CounterexampleTask = {
   id: 'cx-m2-3',
@@ -169,6 +236,8 @@ const cxKmpResetZero: CounterexampleTask = {
             i += 1
     return res`,
   bugLine: 11,
+  buggyCodeCpp: kmpTailCpp('i < (int)text.size()', 'j = 0;               // начинаем поиск заново', '            j = lps[j - 1];'),
+  bugLineCpp: 12,
   hint: 'Что, если конец одного вхождения — это начало следующего?',
   fields: [
     { name: 'text', label: 'text', placeholder: 'ABCABC' },
@@ -186,6 +255,10 @@ const cxKmpResetZero: CounterexampleTask = {
   fixedCode: `            if j == len(pat):
                 res.append(i - j)
                 j = lps[j - 1]`,
+  fixedCodeCpp: `            if (j == (int)pat.size()) {
+                res.push_back(i - j);
+                j = lps[j - 1];
+            }`,
 };
 
 const cxKmpAdvance: CounterexampleTask = {
@@ -210,6 +283,8 @@ const cxKmpAdvance: CounterexampleTask = {
             i += 1
     return res`,
   bugLine: 14,
+  buggyCodeCpp: kmpTailCpp('i < (int)text.size()', 'j = lps[j - 1];', '            j = lps[j - 1];\n            i++;                     // «этот символ уже проверили»'),
+  bugLineCpp: 16,
   hint: 'После отката j символ text[i] ещё НЕ сравнивали с pat[новый j]. Когда он мог бы совпасть?',
   fields: [
     { name: 'text', label: 'text', placeholder: 'XABX' },
@@ -226,6 +301,9 @@ const cxKmpAdvance: CounterexampleTask = {
     'text = "AAB", pattern = "AB". i=0: \'A\'==\'A\' → i=1, j=1. i=1: \'A\' ≠ \'B\' → j = LPS[0] = 0. Правильный KMP НЕ двигает i и сравнивает text[1]=\'A\' с pat[0]=\'A\' — совпадение, затем \'B\' → вхождение в позиции 1. Багованный код делает i = 2 и пропускает начало вхождения. Ключевая идея KMP: при mismatch двигается только j (образец), а символ текста сравнивается заново.',
   fixedCode: `        elif j > 0:
             j = lps[j - 1]          # i не трогаем`,
+  fixedCodeCpp: `        } else if (j > 0) {
+            j = lps[j - 1];          // i не трогаем
+        }`,
 };
 
 const cxKmpBound: CounterexampleTask = {
@@ -249,6 +327,8 @@ const cxKmpBound: CounterexampleTask = {
             i += 1
     return res`,
   bugLine: 5,
+  buggyCodeCpp: kmpTailCpp('i < (int)text.size() - (int)pat.size()', 'j = lps[j - 1];', '            j = lps[j - 1];'),
+  bugLineCpp: 6,
   hint: 'В KMP i — индекс в ТЕКСТЕ, он должен дойти до конца текста. Граница n − m нужна только в наивном алгоритме, где i — сдвиг.',
   fields: [
     { name: 'text', label: 'text', placeholder: 'ABXXXX' },
@@ -264,6 +344,7 @@ const cxKmpBound: CounterexampleTask = {
   explanation:
     'text = "XAB", pattern = "AB": цикл идёт, пока i < 3 − 2 = 1, то есть проверяется только text[0]. Вхождение в позиции 1 (в конце текста) теряется. Вообще любое вхождение, которое заканчивается в последних m символах текста, будет потеряно.',
   fixedCode: `    while i < len(text):`,
+  fixedCodeCpp: `    while (i < (int)text.size()) {`,
 };
 
 export const CX_M2: CounterexampleTask[] = [cxKmpResetZero, cxKmpBound, cxLpsZero, cxKmpAdvance, cxLpsNoRecheck];

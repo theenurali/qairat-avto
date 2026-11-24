@@ -35,6 +35,31 @@ export const lessonDfsIterative: Lesson = {
             if v not in visited:
                 stack.append(v)
     return order`,
+      cpp: `vector<int> dfs_iterative(const vector<vector<int>>& graph, int start) {
+    vector<bool> visited(graph.size(), false);
+    vector<int> order;
+    stack<int> st;
+    st.push(start);
+    while (!st.empty()) {
+        int u = st.top(); st.pop();         // берём с вершины стека (LIFO)
+        if (visited[u])
+            continue;                       // могла попасть в стек дважды
+        visited[u] = true;                  // помечаем при POP
+        order.push_back(u);
+        for (auto it = graph[u].rbegin(); it != graph[u].rend(); ++it)   // обратный порядок
+            if (!visited[*it])
+                st.push(*it);               // меньший сосед окажется сверху
+    }
+    return order;
+}`,
+      cppExplain: [
+        { line: 4, text: "std::stack<int> — LIFO-контейнер. Изначально в нём только стартовая вершина." },
+        { line: 7, text: "В C++ top() только читает вершину стека, а pop() удаляет её и ничего не возвращает — поэтому нужны два вызова." },
+        { line: 8, text: "Одна вершина может лежать в стеке несколько раз (её положили разные соседи). Обрабатываем только первый pop." },
+        { line: 10, text: "Помечаем в момент извлечения — так порядок посещения совпадает с recursive DFS." },
+        { line: 12, text: "rbegin()/rend() — обратные итераторы, аналог reversed(graph[u]): последним кладём наименьшего соседа, и он первым снимется со стека." },
+        { line: 13, text: "Уже посещённых не кладём (оптимизация; проверка на строке 8 всё равно нужна)." },
+      ],
       explain: [
         { line: 4, text: 'Стек изначально содержит только стартовую вершину.' },
         { line: 6, text: 'list.pop() без аргумента снимает ПОСЛЕДНИЙ элемент — это LIFO. (pop(0) дал бы очередь и BFS-подобный порядок.)' },

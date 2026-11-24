@@ -40,7 +40,7 @@ export function McqCard({ q, index, chosen, revealed, onChoose, locked }: McqCar
       <div className="text-[15px] font-medium leading-relaxed text-slate-100">
         <Markup text={q.question} />
       </div>
-      {q.code && <CodeBlock code={q.code} />}
+      {q.code && <CodeBlock code={q.code} cpp={q.codeCpp} />}
       <div className="mt-4 grid gap-2">
         {q.options.map((opt, i) => {
           const isChosen = chosen === i;

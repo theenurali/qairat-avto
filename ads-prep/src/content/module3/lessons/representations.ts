@@ -36,6 +36,28 @@ export const representationsLesson: Lesson = {
     {
       kind: 'code',
       caption: 'Построение Adjacency Matrix из списка рёбер',
+      cpp: `vector<vector<int>> build_matrix(int n, const vector<pair<int, int>>& edges, bool directed = false) {
+    vector<vector<int>> matrix(n, vector<int>(n, 0));
+    for (auto [u, v] : edges) {
+        matrix[u][v] = 1;
+        if (!directed)
+            matrix[v][u] = 1;
+    }
+    return matrix;
+}
+
+int main() {
+    vector<pair<int, int>> edges = {{0, 1}, {0, 2}, {1, 2}, {2, 3}};
+    auto m = build_matrix(4, edges);
+    cout << (m[1][2] == 1) << endl;   // есть ли ребро 1-2?  O(1)
+}`,
+      cppExplain: [
+        { line: 2, text: "n строк по n нулей. vector копирует строку ПО ЗНАЧЕНИЮ, поэтому все строки независимы (в Python ловушка `[[0] * n] * n` здесь невозможна)." },
+        { line: 3, text: "Structured binding `auto [u, v]` (C++17) распаковывает pair, как `for u, v in edges` в Python." },
+        { line: 4, text: "Ставим 1 в ячейку (u, v)." },
+        { line: 6, text: "Для неориентированного графа ставим и симметричную ячейку (v, u)." },
+        { line: 14, text: "Проверка ребра — обращение по индексам: O(1). Главное преимущество матрицы." },
+      ],
       code: `def build_matrix(n, edges, directed=False):
     matrix = [[0] * n for _ in range(n)]
     for u, v in edges:
@@ -63,6 +85,30 @@ print(m[1][2] == 1)      # есть ли ребро 1-2?  O(1)`,
     {
       kind: 'code',
       caption: 'Построение Adjacency List',
+      cpp: `vector<vector<int>> build_adj_list(int n, const vector<pair<int, int>>& edges, bool directed = false) {
+    vector<vector<int>> adj(n);
+    for (auto [u, v] : edges) {
+        adj[u].push_back(v);
+        if (!directed)
+            adj[v].push_back(u);
+    }
+    return adj;
+}
+
+int main() {
+    auto adj = build_adj_list(4, {{0, 1}, {0, 2}, {1, 2}, {2, 3}});
+    for (int v : adj[2])        // все соседи вершины 2: O(deg(2))
+        cout << v << ' ';       // 0 1 3
+    bool has = find(adj[1].begin(), adj[1].end(), 3) != adj[1].end();
+    cout << has << endl;        // есть ли ребро 1-3?  O(deg(1)) -> 0
+}`,
+      cppExplain: [
+        { line: 2, text: "adj(n) — сразу n пустых списков, поэтому в C++ все вершины 0..n−1 есть в структуре, даже изолированные (в отличие от defaultdict в Python)." },
+        { line: 4, text: "push_back добавляет v в конец списка соседей u — O(1) амортизированно." },
+        { line: 6, text: "Для undirected графа обратная запись. Забыть её — частая ошибка: обход «не увидит» рёбра в одну сторону." },
+        { line: 13, text: "Перебор соседей стоит O(deg(u)) — ровно столько, сколько соседей. Поэтому BFS/DFS работают за O(V + E)." },
+        { line: 15, text: "Проверка ребра — линейный поиск find по списку: O(deg(u)). Для O(1) в среднем соседей можно хранить в unordered_set<int>." },
+      ],
       code: `from collections import defaultdict
 
 def build_adj_list(edges, directed=False):
@@ -99,6 +145,33 @@ print(3 in adj[1])       # есть ли ребро 1-3?  O(deg(1)) -> False`,
     {
       kind: 'code',
       caption: 'Edge List и конвертация в Adjacency List',
+      cpp: `vector<pair<int, int>> edges = {{0, 1}, {0, 2}, {1, 2}, {2, 3}};      // Edge List
+vector<array<int, 3>> weighted = {{0, 1, 5}, {0, 2, 3}, {2, 3, 7}};  // с весами
+
+bool has_edge(const vector<pair<int, int>>& edges, int u, int v) {
+    for (auto [a, b] : edges)                    // O(E)
+        if ((a == u && b == v) || (a == v && b == u))
+            return true;
+    return false;
+}
+
+int main() {
+    sort(weighted.begin(), weighted.end(),
+         [](const auto& x, const auto& y) { return x[2] < y[2]; });  // O(E log E)
+
+    int n = 4;
+    vector<vector<int>> adj(n);                  // Edge List -> Adjacency List
+    for (auto [u, v] : edges) {                  // O(V + E)
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
+}`,
+      cppExplain: [
+        { line: 1, text: "Каждое ребро хранится ровно один раз — память O(E)." },
+        { line: 5, text: "Проверка ребра — линейный поиск по всем рёбрам: O(E)." },
+        { line: 12, text: "Сортировка рёбер по весу (третий элемент array) лямбда-компаратором — естественная операция для Edge List (нужна в Kruskal)." },
+        { line: 16, text: "Обычно Edge List сразу превращают в Adjacency List перед BFS/DFS." },
+      ],
       code: `edges = [(0, 1), (0, 2), (1, 2), (2, 3)]     # Edge List
 weighted = [(0, 1, 5), (0, 2, 3), (2, 3, 7)]  # с весами
 
@@ -293,6 +366,13 @@ for u, v in edges:                           # O(V + E)
       code: `n = 3
 matrix = [[0] * n] * n
 matrix[0][1] = 1`,
+      codeCpp: `// Этот вопрос — про особенность Python. В C++ аналог
+//     vector<vector<int>> matrix(n, vector<int>(n, 0));
+// создаёт n НЕЗАВИСИМЫХ строк (копирование по значению), такой ошибки нет.
+// Python-код из вопроса:
+//     n = 3
+//     matrix = [[0] * n] * n
+//     matrix[0][1] = 1`,
       options: ['Ничего, всё правильно', 'Все три строки — один и тот же список, поэтому matrix[1][1] и matrix[2][1] тоже станут 1', 'Ошибка IndexError', 'Нужно писать matrix[0, 1]'],
       correct: 1,
       explanation: '`[row] * n` копирует ссылку на одну строку n раз. Правильно: `[[0] * n for _ in range(n)]`.',

@@ -56,7 +56,13 @@ function ItemReview({ item, ans, got, checks }: { item: MockItem; ans: MockAnswe
         <Card>
           {header}
           <div className="text-lg font-semibold text-white">🐞 {item.task.title}</div>
-          <CodeBlock code={item.task.buggyCode} danger={[item.task.bugLine]} caption={`Ошибка в строке ${item.task.bugLine}`} />
+          <CodeBlock
+            code={item.task.buggyCode}
+            cpp={item.task.buggyCodeCpp}
+            danger={[item.task.bugLine]}
+            dangerCpp={[item.task.bugLineCpp]}
+            caption={`Ошибка: Python — строка ${item.task.bugLine}, C++ — строка ${item.task.bugLineCpp}`}
+          />
           <div className="text-sm text-slate-400">
             Ваши данные:{' '}
             <span className="font-mono text-slate-100">
