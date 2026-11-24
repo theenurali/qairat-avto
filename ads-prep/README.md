@@ -11,6 +11,7 @@ npm run dev      # http://localhost:5188
 ```
 
 Production-сборка: `npm run build`, затем `npm run preview`.
+Публикация на GitHub Pages: `npm run build:pages` — собирает сайт в папку `../ads` (https://theenurali.github.io/qairat-avto/ads/), затем закоммитьте и запушьте её.
 Тесты (алгоритмы, все задания, контрпримеры, mock exams): `npm test`.
 
 ## Что внутри
